@@ -69,11 +69,16 @@ int GzFreeDisplay(GzDisplay	*display)
 
 /* clean up, free memory */
 	if (display != NULL) {
-		display->xres = NULL;
-		display->yres = NULL;
-		display->dispClass = NULL;
-		display->open = NULL;
-		display->fbuf = NULL;
+		//display->xres = NULL;
+		//display->yres = NULL;
+		//display->dispClass = NULL;
+		//display->open = NULL;
+		//display->fbuf = NULL;
+		// free buffer
+		//for (int i = 0; i < (display->xres * display->yres); ++i) {
+		//	free(&(display->fbuf[i]));
+		//}
+		//delete display->fbuf;
 		free(display);
 	}
 	return GZ_SUCCESS;
@@ -106,11 +111,12 @@ int GzInitDisplay(GzDisplay	*display)
 	sprintf_s(dbstr, "GzInitDisplay called\n");
 	OutputDebugString(dbstr);
 
+
 	/* set everything to some default values - start a new frame */
 	// TODO - DEFAULT VALS? FILL FRAME BUFFER WITH RANDOM COLOR?
 	for (int i = 0; i < (display->xres * display->yres); ++i)  {
 		GzPixel* newPixel = (GzPixel*) malloc(sizeof(GzPixel*));
-		newPixel->red = 255;
+		newPixel->red = 4095;
 		newPixel->green = 0;
 		newPixel->blue = 0;
 		newPixel->alpha = 1;
@@ -126,7 +132,8 @@ int GzPutDisplay(GzDisplay *display, int i, int j, GzIntensity r, GzIntensity g,
 {
 		// DEBUG
 	char dbstr[256];
-	
+	//sprintf_s(dbstr, "GzPutDisplay called\n");
+	//OutputDebugString(dbstr);
 
 /* write pixel values into the display */
 	// check bounds 
@@ -158,8 +165,8 @@ int GzPutDisplay(GzDisplay *display, int i, int j, GzIntensity r, GzIntensity g,
 	}
 
 	// 
-	sprintf_s(dbstr, "put %d %d %d\n", r, g, b);
-	OutputDebugString(dbstr);
+	//sprintf_s(dbstr, "put %d %d %d\n", r, g, b);
+	//OutputDebugString(dbstr);
 	// New Pixel
 	//GzPixel* newPixel = (GzPixel*) malloc(sizeof(GzPixel*)); // make new pixel
 	//newPixel->red = r;
@@ -200,7 +207,7 @@ int GzGetDisplay(GzDisplay *display, int i, int j, GzIntensity *r, GzIntensity *
 		return GZ_FAILURE;
 	}
 
-	GzPixel pix = display->fbuf[(display->xres*j) + i];
+	GzPixel pix = display->fbuf[ARRAY(i, j)];
 	r = (GzIntensity*) pix.red;
 	g = (GzIntensity*) pix.green;
 	b = (GzIntensity*) pix.blue;
@@ -229,8 +236,10 @@ int GzFlushDisplay2File(FILE* outfile, GzDisplay *display)
 		return GZ_FAILURE;
 	}
 
+	FILE* fptr = outfile;
+
 	// first line
-	fprintf(outfile, "P6 %d %d 255\n", display->xres, display->yres); // this should just be a string right?
+	fprintf(fptr, "P6 %d %d 255\n", display->xres, display->yres); // this should just be a string right?
 	
 	// write all pixels
 	for (int i = 0; i < (display->xres * display->yres); ++i) {
@@ -238,21 +247,26 @@ int GzFlushDisplay2File(FILE* outfile, GzDisplay *display)
 		
 		// convert for ppm
 		//short short_red = curr.red >> 4; // man i hope this isn't in place
-		unsigned char ppm_red = (unsigned char) curr.red >> 4;
-		unsigned char ppm_green = (unsigned char) curr.green >> 4;
-		unsigned char ppm_blue = (unsigned char) curr.blue >> 4;
+		unsigned char ppm_red = curr.red >> 4;
+		unsigned char ppm_green = curr.green >> 4;
+		unsigned char ppm_blue = curr.blue >> 4;
 		
 		// write to file, does outfile keep track of the end or does it just go over
 		// fwrite returns num of bytes written
 		// TODO: CHECK THIS
-		fwrite(&ppm_red, 1, 1, outfile);
-		fwrite(&ppm_green, 1, 1, outfile);
-		fwrite(&ppm_blue, 1, 1, outfile);
+		fwrite(&ppm_red, 1, 1, fptr);
+		fwrite(&ppm_green, 1, 1, fptr);
+		fwrite(&ppm_blue, 1, 1, fptr);
 	}
 
 	// close file
-	fclose(outfile);
-
+	//int check = fclose(outfile);
+	//if (check == 0) {
+	//	sprintf_s(dbstr, "file close successful\n");
+	//} else {
+	//	sprintf_s(dbstr, "file close fail\n");
+	//}
+	//OutputDebugString(dbstr);
 	return GZ_SUCCESS;
 }
 
