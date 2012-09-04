@@ -88,7 +88,7 @@ int Application1::Render()
 			&ulx, &uly, &lrx, &lry, &r, &g, &b) == 7) { 
 		for (j = uly; j <= lry; j++) {
 		  for (i = ulx; i <= lrx; i++) {
-		    GzPutDisplay(m_pDisplay, i, j, r, g, b, 1, 0);
+		    GzPutDisplay(m_pDisplay, i, j,r , g, b, 1, 0);
 		  }
 		}
 	} 
