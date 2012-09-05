@@ -12,9 +12,14 @@ int GzNewFrameBuffer(char** framebuffer, int width, int height)
 */
 
 	// DEBUG
-	char dbstr[256];
-	sprintf_s(dbstr, "GzNewFrameBuffer called\n");
-	OutputDebugString(dbstr);
+	//char dbstr[256];
+	//sprintf_s(dbstr, "GzNewFrameBuffer called\n");
+	//OutputDebugString(dbstr);
+
+	// bounds check
+	if (width <= 0 || height <= 0 || width > MAXXRES || height > MAXYRES) {
+		return GZ_FAILURE;
+	}
 
 	// allocate
 	*framebuffer = (char*) malloc(3 * width * height);
@@ -34,9 +39,15 @@ int GzNewDisplay(GzDisplay	**display, GzDisplayClass dispClass, int xRes, int yR
 */
 
 	// DEBUG
-	char dbstr[256];
-	sprintf_s(dbstr, "GzNewDisplay called\n");
-	OutputDebugString(dbstr);
+	//char dbstr[256];
+	//sprintf_s(dbstr, "GzNewDisplay called\n");
+	//OutputDebugString(dbstr);
+
+		// bounds check
+	if (xRes <= 0 || yRes <= 0 || xRes > MAXXRES || yRes > MAXYRES) {
+		return GZ_FAILURE;
+	}
+
 
 	*display = (GzDisplay*) malloc(sizeof(GzDisplay));
 	if (*display == NULL) {
@@ -61,9 +72,9 @@ int GzFreeDisplay(GzDisplay	*display)
 {
 
 		// DEBUG
-	char dbstr[256];
-	sprintf_s(dbstr, "GzFreeDisplay called\n");
-	OutputDebugString(dbstr);
+	//char dbstr[256];
+	//sprintf_s(dbstr, "GzFreeDisplay called\n");
+	//OutputDebugString(dbstr);
 
 /* clean up, free memory */
 	if (display != NULL) {
@@ -83,9 +94,9 @@ int GzFreeDisplay(GzDisplay	*display)
 int GzGetDisplayParams(GzDisplay *display, int *xRes, int *yRes, GzDisplayClass	*dispClass)
 {
 	// DEBUG
-	char dbstr[256];
-	sprintf_s(dbstr, "GzGetDisplayParams called\n");
-	OutputDebugString(dbstr);
+	//char dbstr[256];
+	//sprintf_s(dbstr, "GzGetDisplayParams called\n");
+	//OutputDebugString(dbstr);
 
 /* pass back values for an open display */
 	if (display == NULL) {
@@ -102,15 +113,21 @@ int GzInitDisplay(GzDisplay	*display)
 {
 
 	// DEBUG
-	char dbstr[256];
-	sprintf_s(dbstr, "GzInitDisplay called\n");
-	OutputDebugString(dbstr);
+	//char dbstr[256];
+	//sprintf_s(dbstr, "GzInitDisplay called\n");
+	//OutputDebugString(dbstr);
 
+	if (display == NULL) {
+		return GZ_FAILURE;
+	}
 
 	/* set everything to some default values - start a new frame */
 	// TODO - DEFAULT VALS? FILL FRAME BUFFER WITH RANDOM COLOR?
 	for (int i = 0; i < (display->xres * display->yres); ++i)  {
 		GzPixel* newPixel = (GzPixel*) malloc(sizeof(GzPixel));
+		if (newPixel == NULL) {
+			return GZ_FAILURE;
+		}
 		newPixel->red = 4095;
 		newPixel->green = 0;
 		newPixel->blue = 0;
@@ -126,9 +143,13 @@ int GzInitDisplay(GzDisplay	*display)
 int GzPutDisplay(GzDisplay *display, int i, int j, GzIntensity r, GzIntensity g, GzIntensity b, GzIntensity a, GzDepth z)
 {
 		// DEBUG
-	char dbstr[256];
+	//char dbstr[256];
 	//sprintf_s(dbstr, "GzPutDisplay called\n");
 	//OutputDebugString(dbstr);
+
+	if (display == NULL) {
+		return GZ_FAILURE;
+	}
 
 /* write pixel values into the display */
 	// check bounds 
@@ -139,7 +160,7 @@ int GzPutDisplay(GzDisplay *display, int i, int j, GzIntensity r, GzIntensity g,
 		return GZ_FAILURE;
 	}
 
-	// check values or should i clamp
+	// check values and CLAMP
 	if (r < 0) {
 		r = 0;
 	}
@@ -187,18 +208,22 @@ int GzPutDisplay(GzDisplay *display, int i, int j, GzIntensity r, GzIntensity g,
 int GzGetDisplay(GzDisplay *display, int i, int j, GzIntensity *r, GzIntensity *g, GzIntensity *b, GzIntensity *a, GzDepth *z)
 {
 
-	// DEBUG
-	char dbstr[256];
-	sprintf_s(dbstr, "GzGetDisplay called\n");
-	OutputDebugString(dbstr);
+	//// DEBUG
+	//char dbstr[256];
+	//sprintf_s(dbstr, "GzGetDisplay called\n");
+	//OutputDebugString(dbstr);
+
+	if (display == NULL) {
+		return GZ_FAILURE;
+	}
 
 	/* pass back pixel value in the display */ // what?
 	/* check display class to see what vars are valid */
 	// check bounds
-	if ((i * j) >= (display->xres * display->yres)) {
+	if (ARRAY(i, j) >= (display->xres * display->yres)) {
 		return GZ_FAILURE;
 	}
-	if ((i*j) <= 0) {
+	if (ARRAY(i, j) <= 0) {
 		return GZ_FAILURE;
 	}
 
@@ -216,9 +241,9 @@ int GzFlushDisplay2File(FILE* outfile, GzDisplay *display)
 {
 
 	// DEBUG
-	char dbstr[256];
-	sprintf_s(dbstr, "GzFlusDisplay2File called\n");
-	OutputDebugString(dbstr);
+	//char dbstr[256];
+	//sprintf_s(dbstr, "GzFlusDisplay2File called\n");
+	//OutputDebugString(dbstr);
 
 	/* write pixels to ppm file based on display class -- "P6 %d %d 255\r" */
 	//test file
@@ -269,9 +294,9 @@ int GzFlushDisplay2FrameBuffer(char* framebuffer, GzDisplay *display)
 {
 
 	// DEBUG
-	char dbstr[256];
+	/*char dbstr[256];
 	sprintf_s(dbstr, "GzFlushDisplay2FrameBuffer called\n");
-	OutputDebugString(dbstr);
+	OutputDebugString(dbstr);*/
 
 	/* write pixels to framebuffer: 
 		- Put the pixels into the frame buffer
