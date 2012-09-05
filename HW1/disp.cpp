@@ -21,10 +21,7 @@ int GzNewFrameBuffer(char** framebuffer, int width, int height)
 	if (framebuffer == NULL) {
 		return GZ_FAILURE;
 	}
-
-	// fill with some color
 	
-
 	return GZ_SUCCESS;
 }
 
@@ -41,7 +38,7 @@ int GzNewDisplay(GzDisplay	**display, GzDisplayClass dispClass, int xRes, int yR
 	sprintf_s(dbstr, "GzNewDisplay called\n");
 	OutputDebugString(dbstr);
 
-	*display = (GzDisplay*) malloc(sizeof(GzDisplay*));
+	*display = (GzDisplay*) malloc(sizeof(GzDisplay));
 	if (*display == NULL) {
 		return GZ_FAILURE;
 	}
@@ -49,6 +46,7 @@ int GzNewDisplay(GzDisplay	**display, GzDisplayClass dispClass, int xRes, int yR
 	(*display)->xres = xRes;
 	(*display)->yres = yRes;
 	(*display)->fbuf = new GzPixel[xRes*yRes];
+	//(*display)->fbuf = (GzPixel*) malloc(sizeof(GzPixel*) * xRes * yRes);
 
 
 	if ((*display)->fbuf == NULL) {
@@ -69,16 +67,13 @@ int GzFreeDisplay(GzDisplay	*display)
 
 /* clean up, free memory */
 	if (display != NULL) {
-		//display->xres = NULL;
-		//display->yres = NULL;
-		//display->dispClass = NULL;
-		//display->open = NULL;
-		//display->fbuf = NULL;
-		// free buffer
+		// free buffer????
 		//for (int i = 0; i < (display->xres * display->yres); ++i) {
-		//	free(&(display->fbuf[i]));
+		//	free(&display->fbuf[i]);
+		//	//*display->fbuf[i] = NULL;
 		//}
-		//delete display->fbuf;
+		delete display->fbuf;
+		display->fbuf = NULL;
 		free(display);
 	}
 	return GZ_SUCCESS;
@@ -115,7 +110,7 @@ int GzInitDisplay(GzDisplay	*display)
 	/* set everything to some default values - start a new frame */
 	// TODO - DEFAULT VALS? FILL FRAME BUFFER WITH RANDOM COLOR?
 	for (int i = 0; i < (display->xres * display->yres); ++i)  {
-		GzPixel* newPixel = (GzPixel*) malloc(sizeof(GzPixel*));
+		GzPixel* newPixel = (GzPixel*) malloc(sizeof(GzPixel));
 		newPixel->red = 4095;
 		newPixel->green = 0;
 		newPixel->blue = 0;
@@ -294,7 +289,7 @@ int GzFlushDisplay2FrameBuffer(char* framebuffer, GzDisplay *display)
 		return GZ_FAILURE;
 	}
 
-	char* buf = framebuffer;
+	//char* buf = framebuffer;
 	int pos = 0;
 
 	for (int i = 0; i < (display->xres * display->yres); ++i) {
@@ -302,13 +297,14 @@ int GzFlushDisplay2FrameBuffer(char* framebuffer, GzDisplay *display)
 		
 		// convert for ppm
 		//short short_red = curr.red >> 4; // man i hope this isn't in place
-		unsigned char ppm_red = (unsigned char) curr.red >> 4;
-		unsigned char ppm_green = (unsigned char) curr.green >> 4;
-		unsigned char ppm_blue = (unsigned char) curr.blue >> 4;
+		unsigned char ppm_red = curr.red >> 4;
+		unsigned char ppm_green = curr.green >> 4;
+		unsigned char ppm_blue = curr.blue >> 4;
 
-		pos += sprintf(buf + pos, "%c", ppm_blue);
-		pos += sprintf(buf + pos, "%c", ppm_green);
-		pos += sprintf(buf + pos, "%c", ppm_red);
+		// write to buffer
+		pos += sprintf(framebuffer + pos, "%c", ppm_blue);
+		pos += sprintf(framebuffer + pos, "%c", ppm_green);
+		pos += sprintf(framebuffer + pos, "%c", ppm_red);
 
 	}	
 	
