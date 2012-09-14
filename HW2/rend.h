@@ -15,7 +15,7 @@
 #define	MAX_LIGHTS	10		/* how many lights allowed */
 
 /* Dummy definition : change it later */
-#ifndef GzCamer
+#ifndef GzCamera
 #define GzCamera	GzPointer
 #endif
 
@@ -49,6 +49,17 @@ typedef struct {			/* define a renderer */
 }  GzRender;
 #endif
 
+//#ifndef DDA
+//#define DDA
+//typedef struct {
+//	GzCoord start;
+//	GzCoord end;
+//	GzCoord current;
+//	float slopeX;
+//	float slopeZ;
+//} DDA;
+//#endif
+
 // Function declaration
 int GzNewRender(GzRender **render, GzRenderClass renderClass, GzDisplay *display);
 int GzFreeRender(GzRender *render);
@@ -57,3 +68,5 @@ int GzPutAttribute(GzRender	*render, int numAttributes, GzToken	*nameList,
 	GzPointer *valueList);
 int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 	GzPointer *valueList);
+
+//void setUpDDA(DDA* dda, GzCoord start, GzCoord end);
