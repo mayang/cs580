@@ -291,7 +291,7 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 						GzDepth z;
 						GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
 						// compare, if interpZ less than draw over
-						if (interpZ < z) {
+						if (interpZ > z) {
 							r = (GzIntensity) ctoi((float) render->flatcolor[0]);
 							g = (GzIntensity) ctoi((float)render->flatcolor[1]);
 							b = (GzIntensity) ctoi((float)render->flatcolor[2]);
@@ -304,7 +304,7 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 				}
 			}
 
-			GzDisplay* disp = render->display;
+			//GzDisplay* disp = render->display;
 			
 
 
