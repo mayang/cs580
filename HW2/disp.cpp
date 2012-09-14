@@ -137,9 +137,9 @@ int GzInitDisplay(GzDisplay	*display)
 		//newPixel->alpha = 1;
 		//newPixel->z = 0;
 		//display->fbuf[i] = *newPixel;
-		display->fbuf[i].red = 4095;
+		display->fbuf[i].red = 1024;
 		display->fbuf[i].green = 0;
-		display->fbuf[i].blue = 0;
+		display->fbuf[i].blue = 1024;
 		display->fbuf[i].alpha = 1;
 		display->fbuf[i].z = 0;
 	}

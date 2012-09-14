@@ -144,6 +144,26 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 			// get points
 			GzCoord* tri = (GzCoord*) valueList[i];
 
+			// bounds checking
+			if (tri[0][Y] > render->display->yres || tri[0][Y] < 0) {
+				return GZ_FAILURE;
+			}
+			if (tri[1][Y] > render->display->yres || tri[1][Y] < 0) {
+				return GZ_FAILURE;
+			}
+			if (tri[2][Y] > render->display->yres || tri[2][Y] < 0) {
+				return GZ_FAILURE;
+			}
+			if (tri[0][X] > render->display->xres || tri[0][X] < 0) {
+				return GZ_FAILURE;
+			}
+			if (tri[1][X] > render->display->xres || tri[1][X] < 0) {
+				return GZ_FAILURE;
+			}
+			if (tri[2][X] > render->display->xres || tri[2][X] < 0) {
+				return GZ_FAILURE;
+			}
+
 			// sort verts by Y
 			float y0 = tri[0][Y];
 			float y1 = tri[1][Y];
@@ -178,9 +198,8 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 					tri[minY][Z] = tempZ;
 				}
 			}
-			y0 = tri[0][Y];
-			y1 = tri[1][Y];
-			y2 = tri[2][Y];
+
+
 
 
 			// FIND L/R relationship
