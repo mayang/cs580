@@ -243,21 +243,38 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 			}
 
 			// get bounding box
-			int topY = ceil(tri[0][Y]);
+			int topY = floor(tri[0][Y]);
 			int bottomY = ceil(tri[2][Y]);
 			int leftX, rightX;
+			// 0 comes before 1
 			if (tri[0][X] < tri[1][X]) {
-				leftX = ceil(tri[0][X]);
-				rightX = ceil(tri[1][X]);
-			} else {
-				rightX = ceil(tri[0][X]);
-				leftX = ceil(tri[1][X]);
-			}
-			if (tri[2][X] < leftX) {
-				leftX = ceil(tri[2][X]);
-			}
-			if (tri[2][X] > rightX) {
-				rightX = ceil(tri[2][X]);
+				// 201
+				if (tri[2][X] < tri[0][X]) {
+					leftX = floor(tri[2][X]);
+					rightX = ceil(tri[1][X]);
+				} else { //0
+					leftX = floor(tri[0][X]);
+					// 021
+					if (tri[2][X] < tri[1][X]) {
+						rightX = ceil(tri[1][X]);
+					} else { // 012
+						rightX = ceil(tri[2][X]);
+					}
+				}
+			} else { // 1 comes before 0
+				//210
+				if (tri[2][X] < tri[1][X]) {
+					leftX = floor(tri[2][X]);
+					rightX = ceil(tri[0][X]);
+				} else { //1
+					leftX = floor(tri[1][X]);
+					// 120
+					if (tri[2][X] < tri[0][X]) {
+						rightX = ceil(tri[0][X]);
+					} else { // 102
+						rightX = ceil(tri[2][X]);
+					}
+				}
 			}
 
 			float x0 = tri[0][X];
@@ -284,7 +301,7 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 			float C = edge01[X]*edge12[Y] - edge01[Y]*edge12[X];
 			// get D
 			float D = -(A*tri[0][X]) - (B*tri[0][Y]) - (C*tri[0][Z]);
-			// A, B, C ,
+			// A, B, C
 			//float A01 = A, B01 = B, C01 = C, D01 = D;
 
 			//float A = tri[0][Y]*tri[1][Z] - tri[0][Z]*tri[1][Y];
@@ -365,7 +382,7 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 							GzPutDisplay(render->display, i, j, r, g, b, a, z);
 						}
 					}
-					else if ( (e01 > 0 && e12 > 0 && e20 > 0) ||  (e01 < 0 && e12 < 0 && e20 < 0)) {
+					else if ( ((e01 > 0) && (e12 > 0) && (e20 > 0)) ||  ((e01 < 0) && (e12 < 0) && (e20 < 0))) {
 						//(e01 == 0 && e12 == 0 && e20 == 0) 
 						// Interpolate Z value
 						interpZ = (-(A*i) - (B*j) - D) / C;
