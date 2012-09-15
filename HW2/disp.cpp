@@ -137,11 +137,11 @@ int GzInitDisplay(GzDisplay	*display)
 		//newPixel->alpha = 1;
 		//newPixel->z = 0;
 		//display->fbuf[i] = *newPixel;
-		display->fbuf[i].red = 1024;
-		display->fbuf[i].green = 0;
-		display->fbuf[i].blue = 1024;
+		display->fbuf[i].red = 2048;
+		display->fbuf[i].green = 2048;
+		display->fbuf[i].blue = 2048;
 		display->fbuf[i].alpha = 1;
-		display->fbuf[i].z = 0;
+		display->fbuf[i].z = 2147483647;
 	}
 
 	return GZ_SUCCESS;
@@ -236,11 +236,11 @@ int GzGetDisplay(GzDisplay *display, int i, int j, GzIntensity *r, GzIntensity *
 	}
 
 	GzPixel pix = display->fbuf[ARRAY(i, j)];
-	r = (GzIntensity*) pix.red;
-	g = (GzIntensity*) pix.green;
-	b = (GzIntensity*) pix.blue;
-	a = (GzIntensity*) pix.alpha;
-	z = (GzDepth*) pix.z;
+	*r = pix.red;
+	*g = pix.green;
+	*b =  pix.blue;
+	*a =  pix.alpha;
+	*z =  pix.z;
 	return GZ_SUCCESS;
 }
 

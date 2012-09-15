@@ -174,7 +174,7 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 				for (int j = i + 1; j < 3; ++j) {
 					float y_0 = tri[i][Y];
 					float y_1 = tri[j][Y];
-					if (tri[i][Y] > tri[j][Y]) {
+					if (tri[minY][Y] > tri[j][Y]) {
 						//if (tri[i][Y] == tri[j][Y]) {
 						//	float x0 = tri[i][X];
 						//	float x1 = tri[j][X];
@@ -198,7 +198,9 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 					tri[minY][Z] = tempZ;
 				}
 			}
-
+			y0 = tri[0][Y];
+			y1 = tri[1][Y];
+			y2 = tri[2][Y];
 
 
 
@@ -235,13 +237,18 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 			}
 			// find L/R relationship
 			else {
-				float A = tri[2][Y] - tri[0][Y];
-				float B = tri[0][X] - tri[2][X];
+				//float A = tri[2][Y] - tri[0][Y];
+				float A = tri[0][Y] - tri[2][Y];
+				//float B = tri[0][X] - tri[2][X];
+				float B = tri[2][X] - tri[0][X];
 				//float C = tri[2][X]*tri[0][Y] - tri[0][X]*tri[2][Y];//??
-				float C = (tri[2][X] - tri[0][X])*tri[0][Y] - (tri[2][Y] - tri[0][Y])*tri[0][X];
-
-				float x = (-C - (B*tri[1][Y])) / A;
-				if ( x < tri[1][X]) {
+				//float C = (tri[2][X] - tri[0][X])*tri[0][Y] - (tri[2][Y] - tri[0][Y])*tri[0][X];
+				float C = (tri[0][X] * tri[2][Y]) - (tri[0][Y] * tri[2][X]);
+				float x_intercept = (-C - (B*tri[1][Y])) / A;
+				float x1 = tri[1][X];
+				// if x intercpet is greater than the x of v1 than 
+				// v1 should be on L
+				if ( x_intercept > tri[1][X]) { // <?
 					float tempX = tri[1][X];
 					float tempY = tri[1][Y];
 					float tempZ = tri[1][Z];
@@ -267,11 +274,18 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 				leftX = ceil(tri[1][X]);
 			}
 			if (tri[2][X] < leftX) {
-				leftX = tri[2][X];
+				leftX = ceil(tri[2][X]);
 			}
 			if (tri[2][X] > rightX) {
-				rightX = tri[2][X];
+				rightX = ceil(tri[2][X]);
 			}
+
+			float x0 = tri[0][X];
+			y0 = tri[0][Y];
+			float x1 = tri[1][X];
+			y1 = tri[1][Y];
+			float x2 = tri[2][X];
+			y2 = tri[2][Y];
 
 			// For interpolating Z
 			// Ax + By + Cz + D = 0;
@@ -307,13 +321,13 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 
 						// get current z at this pixel
 						GzIntensity r, g, b, a;
-						GzDepth z;
+						GzDepth z = 0;
 						GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
 						// compare, if interpZ less than draw over
-						if (interpZ > z) {
-							r = (GzIntensity) ctoi((float) render->flatcolor[0]);
-							g = (GzIntensity) ctoi((float)render->flatcolor[1]);
-							b = (GzIntensity) ctoi((float)render->flatcolor[2]);
+						if (interpZ <= z) {
+							r = (GzIntensity ) ctoi((float) render->flatcolor[0]);
+							g = (GzIntensity ) ctoi((float)render->flatcolor[1]);
+							b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
 							z = interpZ;
 							GzPutDisplay(render->display, i, j, r, g, b, a, z);
 						}
