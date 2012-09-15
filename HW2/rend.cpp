@@ -217,29 +217,39 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 			}
 			// find L/R relationship
 			else {
-				//float A = tri[2][Y] - tri[0][Y];
-				float A = tri[0][Y] - tri[2][Y];
-				//float B = tri[0][X] - tri[2][X];
-				float B = tri[2][X] - tri[0][X];
-				//float C = tri[2][X]*tri[0][Y] - tri[0][X]*tri[2][Y];//??
-				//float C = (tri[2][X] - tri[0][X])*tri[0][Y] - (tri[2][Y] - tri[0][Y])*tri[0][X];
-				float C = (tri[0][X] * tri[2][Y]) - (tri[0][Y] * tri[2][X]);
-				float x_intercept = (-C - (B*tri[1][Y])) / A;
-				float x1 = tri[1][X];
-				// if x intercpet is greater than the x of v1 than 
-				// v1 should be on L
-				if ( x_intercept > tri[1][X]) { // <?
-					float tempX = tri[1][X];
-					float tempY = tri[1][Y];
-					float tempZ = tri[1][Z];
-					tri[1][X] = tri[2][X];
-					tri[1][Y] = tri[2][Y];
-					tri[1][Z] = tri[2][Z];
-					tri[2][X] = tempX;
-					tri[2][Y] = tempY;
-					tri[2][Z] = tempZ;
-				}
-
+				////float A = tri[2][Y] - tri[0][Y];
+				//float A = tri[0][Y] - tri[2][Y];
+				////float B = tri[0][X] - tri[2][X];
+				//float B = tri[2][X] - tri[0][X];
+				////float C = tri[2][X]*tri[0][Y] - tri[0][X]*tri[2][Y];//??
+				////float C = (tri[2][X] - tri[0][X])*tri[0][Y] - (tri[2][Y] - tri[0][Y])*tri[0][X];
+				//float C = (tri[0][X] * tri[2][Y]) - (tri[0][Y] * tri[2][X]);
+				//float x_intercept = (-C - (B*tri[1][Y])) / A;
+				//float x1 = tri[1][X];
+				//// if x intercpet is greater than the x of v1 than 
+				//// v1 should be on L
+				//if ( x_intercept > tri[1][X]) { // <?
+				//	float tempX = tri[1][X];
+				//	float tempY = tri[1][Y];
+				//	float tempZ = tri[1][Z];
+				//	tri[1][X] = tri[2][X];
+				//	tri[1][Y] = tri[2][Y];
+				//	tri[1][Z] = tri[2][Z];
+				//	tri[2][X] = tempX;
+				//	tri[2][Y] = tempY;
+				//	tri[2][Z] = tempZ;
+				//}
+				//if ( tri[2][X] > tri[1][X]) { // <?
+				//	float tempX = tri[1][X];
+				//	float tempY = tri[1][Y];
+				//	float tempZ = tri[1][Z];
+				//	tri[1][X] = tri[2][X];
+				//	tri[1][Y] = tri[2][Y];
+				//	tri[1][Z] = tri[2][Z];
+				//	tri[2][X] = tempX;
+				//	tri[2][Y] = tempY;
+				//	tri[2][Z] = tempZ;
+				//}
 			}
 
 			// get bounding box
@@ -382,7 +392,7 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 							GzPutDisplay(render->display, i, j, r, g, b, a, z);
 						}
 					}
-					else if ( ((e01 > 0) && (e12 > 0) && (e20 > 0)) ||  ((e01 < 0) && (e12 < 0) && (e20 < 0))) {
+					else if ( ((e01 > 0) && (e12 > 0) && (e20 > 0)) || ((e01 < 0) && (e12 < 0) && (e20 < 0))) {
 						//(e01 == 0 && e12 == 0 && e20 == 0) 
 						// Interpolate Z value
 						interpZ = (-(A*i) - (B*j) - D) / C;
@@ -398,12 +408,12 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 							b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
 							z = interpZ;
 							GzPutDisplay(render->display, i, j, r, g, b, a, z);
-						}
+						} 
 
 					}
 
 				}
-			}
+			} 
 
 			//GzDisplay* disp = render->display;
 			
