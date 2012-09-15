@@ -270,11 +270,28 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 			// For interpolating Z
 			// Ax + By + Cz + D = 0;
 			// tri[0] x tri[1] = (A, B, C)
-			float A = tri[0][Y]*tri[1][Z] - tri[0][Z]*tri[1][Y];
-			float B = tri[0][Z]*tri[1][X] - tri[0][X]*tri[1][Z];
-			float C = tri[0][X]*tri[1][Y] - tri[0][Y]*tri[1][X];
+			GzCoord edge01;
+			edge01[X] = tri[1][X]- tri[0][X];
+			edge01[Y] = tri[1][Y] - tri[0][Y];
+			edge01[Z] = tri[1][Z] - tri[0][Z];
+			GzCoord edge12;
+			edge12[X] = tri[2][X] - tri[1][X];
+			edge12[Y] = tri[2][Y] - tri[1][Y];
+			edge12[Z] = tri[2][Z] - tri[1][Z];
+
+			float A = edge01[Y]*edge12[Z] - edge01[Z]*edge12[Y];
+			float B = edge01[Z]*edge12[X] - edge01[X]*edge12[Z];
+			float C = edge01[X]*edge12[Y] - edge01[Y]*edge12[X];
 			// get D
 			float D = -(A*tri[0][X]) - (B*tri[0][Y]) - (C*tri[0][Z]);
+			// A, B, C ,
+			//float A01 = A, B01 = B, C01 = C, D01 = D;
+
+			//float A = tri[0][Y]*tri[1][Z] - tri[0][Z]*tri[1][Y];
+			//float B = tri[0][Z]*tri[1][X] - tri[0][X]*tri[1][Z];
+			//float C = tri[0][X]*tri[1][Y] - tri[0][Y]*tri[1][X];
+			//// get D
+			//float D = -(A*tri[0][X]) - (B*tri[0][Y]) - (C*tri[0][Z]);
 
 			// for pixels in this bounding box
 			float interpZ;
@@ -302,9 +319,54 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 								- (tri[0][X] - tri[2][X])*((float)j - tri[2][Y]);
 
 					// if all have same sign then this pixel should be drawn
-					if ( (e01 > 0 && e12 > 0 && e20 > 0) ||  (e01 == 0 && e12 == 0 && e20 == 0)
-							||  (e01 < 0 && e12 < 0 && e20 < 0)) {
+					if (e01 == 0) {
+						interpZ = (-(A*i) - (B*j) - D) / C;
 
+						// get current z at this pixel
+						GzIntensity r, g, b, a;
+						GzDepth z = 0;
+						GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
+						// compare, if interpZ less than draw over
+						if (interpZ < z) {
+							r = (GzIntensity ) ctoi((float) render->flatcolor[0]);
+							g = (GzIntensity ) ctoi((float)render->flatcolor[1]);
+							b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
+							z = interpZ;
+							GzPutDisplay(render->display, i, j, r, g, b, a, z);
+						}
+					} else if (e12 == 0) {
+						interpZ = (-(A*i) - (B*j) - D) / C;
+
+						// get current z at this pixel
+						GzIntensity r, g, b, a;
+						GzDepth z = 0;
+						GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
+						// compare, if interpZ less than draw over
+						if (interpZ < z) {
+							r = (GzIntensity ) ctoi((float) render->flatcolor[0]);
+							g = (GzIntensity ) ctoi((float)render->flatcolor[1]);
+							b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
+							z = interpZ;
+							GzPutDisplay(render->display, i, j, r, g, b, a, z);
+						}
+					} else if (e20 == 0) {
+						interpZ = (-(A*i) - (B*j) - D) / C;
+
+						// get current z at this pixel
+						GzIntensity r, g, b, a;
+						GzDepth z = 0;
+						GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
+						// compare, if interpZ less than draw over
+						if (interpZ < z) {
+							r = (GzIntensity ) ctoi((float) render->flatcolor[0]);
+							g = (GzIntensity ) ctoi((float)render->flatcolor[1]);
+							b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
+							z = interpZ;
+							GzPutDisplay(render->display, i, j, r, g, b, a, z);
+						}
+					}
+					else if ( (e01 > 0 && e12 > 0 && e20 > 0) ||  (e01 < 0 && e12 < 0 && e20 < 0)) {
+						//(e01 == 0 && e12 == 0 && e20 == 0) 
 						// Interpolate Z value
 						interpZ = (-(A*i) - (B*j) - D) / C;
 
