@@ -144,26 +144,6 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 			// get points
 			GzCoord* tri = (GzCoord*) valueList[i];
 
-			// bounds checking
-			if (tri[0][Y] > render->display->yres || tri[0][Y] < 0) {
-				return GZ_FAILURE;
-			}
-			if (tri[1][Y] > render->display->yres || tri[1][Y] < 0) {
-				return GZ_FAILURE;
-			}
-			if (tri[2][Y] > render->display->yres || tri[2][Y] < 0) {
-				return GZ_FAILURE;
-			}
-			if (tri[0][X] > render->display->xres || tri[0][X] < 0) {
-				return GZ_FAILURE;
-			}
-			if (tri[1][X] > render->display->xres || tri[1][X] < 0) {
-				return GZ_FAILURE;
-			}
-			if (tri[2][X] > render->display->xres || tri[2][X] < 0) {
-				return GZ_FAILURE;
-			}
-
 			// sort verts by Y
 			float y0 = tri[0][Y];
 			float y1 = tri[1][Y];
@@ -299,7 +279,16 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 			// for pixels in this bounding box
 			float interpZ;
 			for (int i = leftX; i < rightX; ++i) {
+				// bounds check
+				if (i < 0 || i > render->display->xres) {
+					continue;
+				}
 				for (int j = topY; j < bottomY; ++j) {
+					// bounds check
+					if (j < 0 || j > render->display->yres) {
+						continue;
+					}
+
 					// Compute LEES
 					// E(x, y) = dY(x-X) - dX(y-Y)
 					// EDGE 0-1
@@ -324,7 +313,7 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 						GzDepth z = 0;
 						GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
 						// compare, if interpZ less than draw over
-						if (interpZ <= z) {
+						if (interpZ < z) {
 							r = (GzIntensity ) ctoi((float) render->flatcolor[0]);
 							g = (GzIntensity ) ctoi((float)render->flatcolor[1]);
 							b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
