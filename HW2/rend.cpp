@@ -104,7 +104,14 @@ int GzPutAttribute(GzRender	*render, int numAttributes, GzToken	*nameList,
 			//*render->flatcolor = **c; // is this even the right setting?
 			// THIS ONLY GETS THE FIRST VALUE WHY
 			GzColor* c = (GzColor*) valueList[i];
-			*render->flatcolor = **c;
+			float r = c[i][0];
+			float g = c[i][1];
+			float b = c[i][2];
+
+
+			render->flatcolor[0] = r;//*c[0];
+			render->flatcolor[1] = g; //*c[1];
+			render->flatcolor[2] = b; //*c[2];
 		}
 	}
 
@@ -145,23 +152,16 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 			GzCoord* tri = (GzCoord*) valueList[i];
 
 			// sort verts by Y
-			float y0 = tri[0][Y];
+		/*	float y0 = tri[0][Y];
 			float y1 = tri[1][Y];
-			float y2 = tri[2][Y];
+			float y2 = tri[2][Y];*/
 			int minY = 0;
 			for (int i = 0; i < 2; ++i) {
 				minY = i;
 				for (int j = i + 1; j < 3; ++j) {
-					float y_0 = tri[i][Y];
-					float y_1 = tri[j][Y];
+					//float y_0 = tri[i][Y];
+					//float y_1 = tri[j][Y];
 					if (tri[minY][Y] > tri[j][Y]) {
-						//if (tri[i][Y] == tri[j][Y]) {
-						//	float x0 = tri[i][X];
-						//	float x1 = tri[j][X];
-						//	if (tri[i][X] < tri[j][X]) {
-						//		continue;
-						//	}
-						//}
 						minY = j;
 					}
 				}
@@ -178,9 +178,9 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 					tri[minY][Z] = tempZ;
 				}
 			}
-			y0 = tri[0][Y];
-			y1 = tri[1][Y];
-			y2 = tri[2][Y];
+			//y0 = tri[0][Y];
+			//y1 = tri[1][Y];
+			//y2 = tri[2][Y];
 
 
 
@@ -287,12 +287,12 @@ int GzPutTriangle(GzRender *render, int	numParts, GzToken *nameList,
 				}
 			}
 
-			float x0 = tri[0][X];
-			y0 = tri[0][Y];
-			float x1 = tri[1][X];
-			y1 = tri[1][Y];
-			float x2 = tri[2][X];
-			y2 = tri[2][Y];
+			//float x0 = tri[0][X];
+			//y0 = tri[0][Y];
+			//float x1 = tri[1][X];
+			//y1 = tri[1][Y];
+			//float x2 = tri[2][X];
+			//y2 = tri[2][Y];
 
 			// For interpolating Z
 			// Ax + By + Cz + D = 0;
