@@ -111,7 +111,7 @@ GzMatrix	rotateY =
 
 	camera.FOV = 53.7;              /* degrees */
 
-	status |= GzPutCamera(m_pRender, &camera); 
+//	status |= GzPutCamera(m_pRender, &camera); 
 #endif 
 
 	/* Start Renderer */
