@@ -111,7 +111,7 @@ GzMatrix	rotateY =
 
 	camera.FOV = 53.7;              /* degrees */
 
-//	status |= GzPutCamera(m_pRender, &camera); 
+	status |= GzPutCamera(m_pRender, &camera); 
 #endif 
 
 	/* Start Renderer */
@@ -205,7 +205,7 @@ int Application3::Render()
 	     * triangle, then feed it to the renderer 
 	     */ 
 	     valueListTriangle[0] = (GzPointer)vertexList; 
-	     GzPutTriangle(m_pRender, 1, nameListTriangle, valueListTriangle); 
+	    GzPutTriangle(m_pRender, 1, nameListTriangle, valueListTriangle); 
 	} 
 
 	GzFlushDisplay2File(outfile, m_pDisplay); 	/* write out or update display to file*/
