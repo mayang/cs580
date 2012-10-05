@@ -1,22 +1,23 @@
-/*   CS580 HW   */
 #include    "stdafx.h"  
 #include	"Gz.h"
 #include	"disp.h"
 
-
+/*
+ * Allocate a new frame buffer.
+ *
+ * framebuffer	Pointer to a framebuffer pointer. The reference to the
+ *		allocated framebuffer is returned via this pointer.
+ * width		The x resolution of the framebuffer
+ * height		The y resolution of the framebuffer
+ *
+ * Return		Integer representing operation status. Check hearders for
+ *		enumeration of the various status values.
+ */
 int GzNewFrameBuffer(char** framebuffer, int width, int height)
 {
-/* create a framebuffer:
- -- allocate memory for framebuffer : (sizeof)GzPixel x width x height
- -- pass back pointer 
-*/
-
-	// DEBUG
-	//char dbstr[256];
-	//sprintf_s(dbstr, "GzNewFrameBuffer called\n");
-	//OutputDebugString(dbstr);
-
-	// bounds check
+	// Currently, the framebuffer only needs to store RGB values for each
+	// pixel. More will be added later, but for now 3 is hardcoded.
+	// Note, sizeof GzPixel should be used later.
 	if (width <= 0 || height <= 0 || width > MAXXRES || height > MAXYRES) {
 		return GZ_FAILURE;
 	}
@@ -31,18 +32,20 @@ int GzNewFrameBuffer(char** framebuffer, int width, int height)
 	return GZ_SUCCESS;
 }
 
+/*
+ * Allocate a new display buffer.
+ *
+ * display		Pointer to a GzDisplay pointer. The reference to the 
+ *		allocated display is returned via this pointer.
+ * dispClass	The class value for this display. Check headers for an
+ *		enumeration of the various display classes.
+ * xRes			The x resolution of the display
+ * yRes			The y resolution of the display
+ *
+ * Return		Status flag
+ */
 int GzNewDisplay(GzDisplay	**display, GzDisplayClass dispClass, int xRes, int yRes)
 {
-
-/* create a display:
-  -- allocate memory for indicated class and resolution
-  -- pass back pointer to GzDisplay object in display
-*/
-
-	// DEBUG
-	//char dbstr[256];
-	//sprintf_s(dbstr, "GzNewDisplay called\n");
-	//OutputDebugString(dbstr);
 
 		// bounds check
 	if (xRes <= 0 || yRes <= 0 || xRes > MAXXRES || yRes > MAXYRES) {
@@ -66,19 +69,19 @@ int GzNewDisplay(GzDisplay	**display, GzDisplayClass dispClass, int xRes, int yR
 		return GZ_FAILURE;
 	}
 
+
 	return GZ_SUCCESS;
 }
 
-
+/*
+ * Free up display memory.
+ *
+ * display      The GzDisplay pointer for which to free memory
+ *
+ * Return	    Status flag
+ */
 int GzFreeDisplay(GzDisplay	*display)
 {
-
-		// DEBUG
-	//char dbstr[256];
-	//sprintf_s(dbstr, "GzFreeDisplay called\n");
-	//OutputDebugString(dbstr);
-
-/* clean up, free memory */
 	if (display != NULL) {
 		// free buffer????
 		//for (int i = 0; i < (display->xres * display->yres); ++i) {
@@ -93,33 +96,36 @@ int GzFreeDisplay(GzDisplay	*display)
 	return GZ_SUCCESS;
 }
 
-
+/*
+ * Get a GzDisplay's parameters
+ *
+ * display		The GzDisplay from which values should be pulled.
+ * xRes			The returned x resolution of the display
+ * yRes			The returned y resolution of the display
+ * dispClass	The returned GzDisplayClass of the display
+ *
+ * Return		Status flag
+ */
 int GzGetDisplayParams(GzDisplay *display, int *xRes, int *yRes, GzDisplayClass	*dispClass)
 {
-	// DEBUG
-	//char dbstr[256];
-	//sprintf_s(dbstr, "GzGetDisplayParams called\n");
-	//OutputDebugString(dbstr);
-
-/* pass back values for an open display */
 	if (display == NULL) {
 		return GZ_FAILURE;
 	}
-	xRes = (int*) display->xres;
-	yRes = (int*) display->yres;
-	dispClass = (GzDisplayClass*) display->dispClass; // copy this?
+	*xRes = display->xres;
+	*yRes = display->yres;
+	*dispClass = display->dispClass; // copy this?
 	return GZ_SUCCESS;
 }
 
-// TODO
+/*
+ * Initialize a display to some default state
+ *
+ * display		The GzDisplay to initalize
+ *
+ * Return		Status flag
+ */
 int GzInitDisplay(GzDisplay	*display)
-{
-
-	// DEBUG
-	//char dbstr[256];
-	//sprintf_s(dbstr, "GzInitDisplay called\n");
-	//OutputDebugString(dbstr);
-
+{	
 	if (display == NULL) {
 		return GZ_FAILURE;
 	}
@@ -141,21 +147,28 @@ int GzInitDisplay(GzDisplay	*display)
 		display->fbuf[i].green = 2048;
 		display->fbuf[i].blue = 2048;
 		display->fbuf[i].alpha = 1;
-		display->fbuf[i].z = 2147483647;
+		display->fbuf[i].z = INT_MAX;
 	}
 	display->open = 1;
-	
 	return GZ_SUCCESS;
 }
 
-
+/*
+ * Set the value of a pixel in a GzDisplay
+ *
+ * display		The display in which the pixel value should be set
+ * i			The x display coordinate to set
+ * j			The y display coordinate to set
+ * r			The red component to set 
+ * g			The green component to set
+ * b			The blue component to set
+ * a			The alpha component to set
+ * z			The depth buffer value to set
+ *
+ * Return		Status flag
+ */
 int GzPutDisplay(GzDisplay *display, int i, int j, GzIntensity r, GzIntensity g, GzIntensity b, GzIntensity a, GzDepth z)
 {
-		// DEBUG
-	//char dbstr[256];
-	//sprintf_s(dbstr, "GzPutDisplay called\n");
-	//OutputDebugString(dbstr);
-
 	if (display == NULL) {
 		return GZ_FAILURE;
 	}
@@ -213,15 +226,22 @@ int GzPutDisplay(GzDisplay *display, int i, int j, GzIntensity r, GzIntensity g,
 	return GZ_SUCCESS;
 }
 
-
+/*
+ * Get the component values of a pixel coordinate from a GzDisplay
+ *
+ * display		The display to pull values from
+ * i			The x display coordinate to get pixel values from
+ * j			The y display coordinate to get pixel values from
+ * r			The pointer to pass the red compenent back through
+ * g			The pointer to pass the green component back through
+ * b			The pointer to pass the blue component back through
+ * a			The pointer to pass the alpha component back through
+ * z			The pointer to pass the z buffer value back through
+ *
+ * Return		Status flag
+ */
 int GzGetDisplay(GzDisplay *display, int i, int j, GzIntensity *r, GzIntensity *g, GzIntensity *b, GzIntensity *a, GzDepth *z)
 {
-
-	//// DEBUG
-	//char dbstr[256];
-	//sprintf_s(dbstr, "GzGetDisplay called\n");
-	//OutputDebugString(dbstr);
-
 	if (display == NULL) {
 		return GZ_FAILURE;
 	}
@@ -245,17 +265,16 @@ int GzGetDisplay(GzDisplay *display, int i, int j, GzIntensity *r, GzIntensity *
 	return GZ_SUCCESS;
 }
 
-
+/*
+ * Flush the display contents to a ppm file.
+ *
+ * outfile		The output file handle where data should be written
+ * display		The display to flush
+ *
+ * Return		Status flag
+ */
 int GzFlushDisplay2File(FILE* outfile, GzDisplay *display)
 {
-
-	// DEBUG
-	//char dbstr[256];
-	//sprintf_s(dbstr, "GzFlusDisplay2File called\n");
-	//OutputDebugString(dbstr);
-
-	/* write pixels to ppm file based on display class -- "P6 %d %d 255\r" */
-	//test file
 	if (outfile == NULL) {
 		return GZ_FAILURE;
 	}
@@ -288,30 +307,19 @@ int GzFlushDisplay2File(FILE* outfile, GzDisplay *display)
 		fwrite(&ppm_blue, 1, 1, fptr);
 	}
 
-	// close file
-	//int check = fclose(outfile);
-	//if (check == 0) {
-	//	sprintf_s(dbstr, "file close successful\n");
-	//} else {
-	//	sprintf_s(dbstr, "file close fail\n");
-	//}
-	//OutputDebugString(dbstr);
 	return GZ_SUCCESS;
 }
 
+/*
+ * Flush a display to a frame buffer.
+ *
+ * framebuffer		The framebuffer to flush the display to
+ * display			The display to flush
+ *
+ * Return			Status flag
+ */
 int GzFlushDisplay2FrameBuffer(char* framebuffer, GzDisplay *display)
 {
-
-	// DEBUG
-	/*char dbstr[256];
-	sprintf_s(dbstr, "GzFlushDisplay2FrameBuffer called\n");
-	OutputDebugString(dbstr);*/
-
-	/* write pixels to framebuffer: 
-		- Put the pixels into the frame buffer
-		- Caution: store the pixel to the frame buffer as the order of blue, green, and red 
-		- Not red, green, and blue !!!
-	*/
 
 	// test framebuffer
 	if (framebuffer == NULL) {
@@ -323,25 +331,25 @@ int GzFlushDisplay2FrameBuffer(char* framebuffer, GzDisplay *display)
 		return GZ_FAILURE;
 	}
 
-	//char* buf = framebuffer;
-	int pos = 0;
+	GzPixel* curr; 
+  
+	for (int i = 0; i < (display->xres * display->yres); ++i) { 
+            // Note, the framebuffer contains slots for each r, g, and b triple. 
+            // This won't be hard coded later. 
+            int offset = 3 * i; 
+            GzPixel* curr = &(display->fbuf[i]); 
 
-	for (int i = 0; i < (display->xres * display->yres); ++i) {
-		GzPixel curr = display->fbuf[i];
-		
-		// convert for ppm
-		//short short_red = curr.red >> 4; // man i hope this isn't in place
-		unsigned char ppm_red = curr.red >> 4;
-		unsigned char ppm_green = curr.green >> 4;
-		unsigned char ppm_blue = curr.blue >> 4;
+			unsigned char ppm_red = curr->red >> 4;
+			unsigned char ppm_green = curr->green >> 4;
+			unsigned char ppm_blue = curr->blue >> 4;
+			 
+            // Don't forget, the frame buffer expects colors in bgr order 
+            framebuffer[offset] = ppm_blue; 
+            framebuffer[offset + 1] = ppm_green ; 
+            framebuffer[offset + 2] = ppm_red; 
+	} 
+    
 
-		// write to buffer
-		pos += sprintf(framebuffer + pos, "%c", ppm_blue);
-		pos += sprintf(framebuffer + pos, "%c", ppm_green);
-		pos += sprintf(framebuffer + pos, "%c", ppm_red);
-
-	}	
-	
 
 	return GZ_SUCCESS;
 }

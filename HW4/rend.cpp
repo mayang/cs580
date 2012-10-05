@@ -112,19 +112,6 @@ int normalizeVector(GzCoord vec) {
 	return GZ_SUCCESS;
 }
 
-int copyMatrix(GzMatrix src, GzMatrix dest) {
-	if (src == NULL || dest == NULL) {
-		return GZ_FAILURE;
-	}
-
-	for (int i = 0; i < 4; ++i) {
-		for (int j = 0; j < 4; ++j) {
-			dest[i][j] = src[i][j];
-		}
-	}
-
-	return GZ_SUCCESS;
-}
 
 //----------------------------------------------------------
 // Begin main functions
@@ -204,21 +191,21 @@ int GzFreeRender(GzRender *render)
 /* 
 -free all renderer resources
 */
-	//if (render == NULL) {
-	//	return GZ_FAILURE;
-	//}
+	if (render == NULL) {
+		return GZ_FAILURE;
+	}
 	//render->display == NULL;
-	////GzFreeDisplay(render->display);
-	////delete[] render->Ximage;
+	GzFreeDisplay(render->display);
+	delete render->Ximage;
 	//////render->Ximage = NULL;
-	////delete[] render->Xsp;
+	delete render->Xsp;
 	//////render->Xsp = NULL
-	////delete[] render->camera.Xiw;
-	////delete[] render->camera.Xpi;
-	////delete[] render->camera.lookat;
-	////delete[] render->camera.position;
-	////delete[] render->camera.worldup;
-	//delete render;
+	delete render->camera.Xiw;
+	delete render->camera.Xpi;
+	delete render->camera.lookat;
+	delete render->camera.position;
+	delete render->camera.worldup;
+	delete render;
 
 	return GZ_SUCCESS;
 }
@@ -270,7 +257,7 @@ int GzBeginRender(GzRender *render)
 	// camera x axis
 	GzCoord camX;
 	camX[X] = camY[Y]*camZ[Z] - camY[Z]*camZ[Y];
-	camX[Y] = camY[Z]*camZ[X] - camZ[X]*camY[Z];
+	camX[Y] = camY[Z]*camZ[X] - camY[X]*camZ[Z];
 	camX[Z] = camY[X]*camZ[Y] - camY[Y]*camZ[X];
 	normalizeVector(camX);
 
@@ -531,11 +518,11 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 				// xform verticies
 				
 				xformTri[j][X] = topMat[0][0]*tri[j][X] + topMat[0][1]*tri[j][Y] + topMat[0][2]*tri[j][Z]
-					+ topMat[0][3]*1;
+					+ topMat[0][3]*1.0;
 				xformTri[j][Y] = topMat[1][0]*tri[j][X] + topMat[1][1]*tri[j][Y] + topMat[1][2]*tri[j][Z]
-					+ topMat[1][3]*1;
+					+ topMat[1][3]*1.0;
 				xformTri[j][Z] = topMat[2][0]*tri[j][X] + topMat[2][1]*tri[j][Y] + topMat[2][2]*tri[j][Z]
-					+ topMat[2][3]*1;
+					+ topMat[2][3]*1.0;
 				W = topMat[3][0]*tri[j][X] + topMat[3][1]*tri[j][Y] + topMat[3][2]*tri[j][Z]
 					+ topMat[3][3]*1;
 				xformTri[j][X] /= W;
@@ -573,6 +560,14 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 			if (behindVP == true) {
 				break;
 			}
+			// CLIPPING
+			//if (xformTri[0][Z] < render->camera.position[Z] 
+			//	&& xformTri[1][Z] < render->camera.position[Z]
+			//	&& xformTri[2][Z] < render->camera.position[Z]) {
+			//	break;
+			//}
+
+			//if ((xformTri[0][X] < 0 && xformTri[1][
 
 			// check if all verts are in screen (think i handle this in my rasterizer)
 			// RASTERIZE
