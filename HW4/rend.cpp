@@ -179,7 +179,7 @@ int GzNewRender(GzRender **render, GzRenderClass renderClass, GzDisplay	*display
 
 	(*render)->Xsp[2][2] = 2147483647 * tan(((*render)->camera.FOV / 2.0) * (PI / 180.0));
 
-
+	(*render)->numlights = 0;
 	(*render)->open = 0;
 
 	return GZ_SUCCESS;
@@ -410,16 +410,59 @@ int GzPutAttribute(GzRender	*render, int numAttributes, GzToken	*nameList,
 	}
 
 	for (int i = 0; i < numAttributes; ++i) {
-		if (nameList[i] = GZ_RGB_COLOR) {
+		if (nameList[i] == GZ_RGB_COLOR) {
 
 			GzColor* c = (GzColor*) valueList[i];
-			float r = c[i][0];
-			float g = c[i][1];
-			float b = c[i][2];
+			float r = c[0][0];
+			float g = c[0][1];
+			float b = c[0][2];
 
 			render->flatcolor[0] = r;
 			render->flatcolor[1] = g; 
 			render->flatcolor[2] = b; 
+		} else if (nameList[i] == GZ_DIRECTIONAL_LIGHT) {
+			// so this kinda assumes that the dir lights are all in one go, 
+			GzLight* dirLite = (GzLight*) valueList[i];
+			render->lights[render->numlights] = *dirLite;
+			render->numlights += 1;
+		} else if (nameList[i] == GZ_AMBIENT_LIGHT) {
+			GzLight* ambLite = (GzLight*) valueList[i];
+			render->ambientlight = *ambLite;
+		} else if (nameList[i] == GZ_DIFFUSE_COEFFICIENT) {
+			GzColor* diffColor = (GzColor*) valueList[i];
+			
+			float diffR = diffColor[0][0];
+			float diffG = diffColor[0][1];
+			float diffB = diffColor[0][2];
+
+			render->Kd[0] = diffR;
+			render->Kd[1] = diffG;
+			render->Kd[2] = diffB;
+		} else if (nameList[i] == GZ_INTERPOLATE) {
+			render->interp_mode = (int) valueList[i];
+		} else if (nameList[i] == GZ_AMBIENT_COEFFICIENT) {
+			GzColor* ambColor = (GzColor*) valueList[i];
+			
+			float ambR = ambColor[0][0];
+			float ambG = ambColor[0][1];
+			float ambB = ambColor[0][2];
+
+			render->Ka[0] = ambR;
+			render->Ka[1] = ambG;
+			render->Ka[2] = ambB;
+		} else if (nameList[i] == GZ_SPECULAR_COEFFICIENT) {
+			GzColor* specColor = (GzColor*) valueList[i];
+			
+			float specR = specColor[0][0];
+			float specG = specColor[0][1];
+			float specB = specColor[0][2];
+
+			render->Ks[0] = specR;
+			render->Ks[1] = specG;
+			render->Ks[2] = specB;
+		} else if (nameList[i] == GZ_DISTRIBUTION_COEFFICIENT) {
+			float* specCoeff = (float*) valueList[i]; // ugh why, int is fine!
+			render->spec = *specCoeff;
 		}
 	}
 	
