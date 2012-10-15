@@ -98,7 +98,7 @@ int GzScaleMat(GzCoord scale, GzMatrix mat)
 }
 
 
-int normalizeVector(GzCoord vec) {
+int GzNormalizeVector(GzCoord vec) {
 	if (vec == NULL) {
 		return GZ_FAILURE;
 	}
@@ -110,6 +110,10 @@ int normalizeVector(GzCoord vec) {
 	vec[Z] = vec[Z] / norm;
 
 	return GZ_SUCCESS;
+}
+
+float GzDotProduct(GzCoord v1, GzCoord v2) {
+	return v1[X]*v2[X] + v1[Y]*v2[Y] + v1[Z]*v2[Z];
 }
 
 
@@ -210,6 +214,36 @@ int GzFreeRender(GzRender *render)
 	return GZ_SUCCESS;
 }
 
+int GzPushNormalMatrix(GzRender *render, GzMatrix matrix) {
+	// replaces top with new matrix
+	
+	// make it a unitary rotation matrix
+	float K = 1 / sqrt((matrix[0][0]*matrix[0][0] + matrix[0][1]*matrix[0][1] +
+					matrix[0][2]*matrix[0][2] + matrix[0][3]*matrix[0][3]));
+
+	matrix[0][0] *= K;
+	matrix[0][1] *= K;
+	matrix[0][2] *= K;
+	matrix[0][3] *= K;
+	/////////////////
+	matrix[1][0] *= K;
+	matrix[1][1] *= K;
+	matrix[1][2] *= K;
+	matrix[1][3] *= K;
+	//////////////////
+	matrix[2][0] *= K;
+	matrix[2][1] *= K;
+	matrix[2][2] *= K;
+	matrix[2][3] *= K;
+	//////////////////
+	matrix[3][0] *= K;
+	matrix[3][1] *= K;
+	matrix[3][2] *= K;
+	matrix[3][3] *= K;
+
+	memcpy(render->Xnorm[render->matlevel], matrix, sizeof(GzMatrix));
+	return GZ_SUCCESS;
+}
 
 int GzBeginRender(GzRender *render)
 {
@@ -228,6 +262,14 @@ int GzBeginRender(GzRender *render)
 	if (render->display == NULL) {
 		return GZ_FAILURE;
 	}
+ 
+	GzMatrix identity = 
+	{ 
+	1.0,	0.0,	0.0,	0.0, 
+	0.0,	1.0,	0.0,	0.0, 
+	0.0,	0.0,	1.0,	0.0, 
+	0.0,	0.0,	0.0,	1.0 
+	};
 
 	// computer Xiw
 	// camera z axis
@@ -235,11 +277,11 @@ int GzBeginRender(GzRender *render)
 	cl[X] = render->camera.lookat[X] - render->camera.position[X];
 	cl[Y] = render->camera.lookat[Y] - render->camera.position[Y];
 	cl[Z] = render->camera.lookat[Z] - render->camera.position[Z];
-	normalizeVector(cl);
+	GzNormalizeVector(cl);
 	camZ[X] = cl[X];
 	camZ[Y] = cl[Y];
 	camZ[Z] = cl[Z];
-	normalizeVector(camZ);
+	GzNormalizeVector(camZ);
 	
 	// camera y axis
 	GzCoord camUp, camY;
@@ -248,18 +290,18 @@ int GzBeginRender(GzRender *render)
 	camUp[X] = render->camera.worldup[X] - upDotZ*camZ[X];
 	camUp[Y] = render->camera.worldup[Y] - upDotZ*camZ[Y];
 	camUp[Z] = render->camera.worldup[Z] - upDotZ*camZ[Z];
-	normalizeVector(camUp);
+	GzNormalizeVector(camUp);
 	camY[X] = camUp[X];
 	camY[Y] = camUp[Y];
 	camY[Z] = camUp[Z];
-	normalizeVector(camY);
+	GzNormalizeVector(camY);
 
 	// camera x axis
 	GzCoord camX;
 	camX[X] = camY[Y]*camZ[Z] - camY[Z]*camZ[Y];
 	camX[Y] = camY[Z]*camZ[X] - camY[X]*camZ[Z];
 	camX[Z] = camY[X]*camZ[Y] - camY[Y]*camZ[X];
-	normalizeVector(camX);
+	GzNormalizeVector(camX);
 
 	// Build Xiw
 	render->camera.Xiw[0][0] = camX[X];
@@ -297,13 +339,25 @@ int GzBeginRender(GzRender *render)
 
 	// init Ximage
 	//render->Ximage[render->matlevel] = render->Xsp;
-	// push Xsp
+	// push Xsp on Ximage, idenity on Xnorm
 	render->matlevel=-1;
 	GzPushMatrix(render, render->Xsp);
-	// push Xpi
+	GzPushNormalMatrix(render, identity);
+	//memcpy(render->Ximage[0], render->Xsp, sizeof(GzMatrix));
+	//memcpy(render->Xnorm[0], identity, sizeof(GzMatrix));
+	//render->matlevel += 1;
+	// push Xpi on Ximage, identity on Xnorm
 	GzPushMatrix(render, render->camera.Xpi);
-	// push Xiw
+	GzPushNormalMatrix(render, identity);
+	//memcpy(render->Ximage[1], render->camera.Xpi, sizeof(GzMatrix));
+	//memcpy(render->Xnorm[1], identity, sizeof(GzMatrix));
+	//render->matlevel += 1;
+	// push Xiw on Ximage, identity on Xnorm
 	GzPushMatrix(render, render->camera.Xiw);
+	//memcpy(render->Ximage[2], render->camera.Xiw, sizeof(GzMatrix));
+	//memcpy(render->Xnorm[2], render->camera.Xiw, sizeof(GzMatrix));
+	//render->matlevel += 1;
+	// this also goes on Xnorm
 
 	render->open = 1; // I don't even know what this does
 
@@ -334,13 +388,15 @@ int GzPutCamera(GzRender *render, GzCamera *camera)
 	render->camera.worldup[X] = camera->worldup[X];
 	render->camera.worldup[Y] = camera->worldup[Y];
 	render->camera.worldup[Z] = camera->worldup[Z];
-	normalizeVector(render->camera.worldup);
+	GzNormalizeVector(render->camera.worldup);
 
 	// I should have to redo this right since camera.fov's changed
 	render->Xsp[2][2] = 2147483647 * tan((render->camera.FOV / 2.0) * (PI / 180.0));
 
 	return GZ_SUCCESS;	
 }
+
+
 
 int GzPushMatrix(GzRender *render, GzMatrix	matrix)
 {
@@ -361,11 +417,95 @@ int GzPushMatrix(GzRender *render, GzMatrix	matrix)
 		return GZ_FAILURE;
 	}
 
+	GzMatrix top;
+
+	// push onto Ximage
 	memcpy(render->Ximage[render->matlevel], matrix, sizeof(GzMatrix));
-	//copyMatrix(render->Ximage[render->matlevel], matrix);
+	//GzMatrix Xi;
+	//memcpy(top, render->Ximage[render->matlevel-1], sizeof(GzMatrix));
+	//Xi[0][0] = top[0][0]*matrix[0][0] + top[0][1]*matrix[1][0]
+	//			+ top[0][2]*matrix[2][0] + top[0][3]*matrix[3][0];
+	//Xi[0][1] = top[0][0]*matrix[0][1] + top[0][1]*matrix[1][1]
+	//			+ top[0][2]*matrix[2][1] + top[0][3]*matrix[3][1];
+	//Xi[0][2] = top[0][0]*matrix[0][2] + top[0][1]*matrix[1][2]
+	//			+ top[0][2]*matrix[2][2] + top[0][3]*matrix[3][2];
+	//Xi[0][3] = top[0][0]*matrix[0][3] + top[0][1]*matrix[1][3]
+	//			+ top[0][2]*matrix[2][3] + top[0][3]*matrix[3][3];
+	///////
+	//Xi[1][0] = top[1][0]*matrix[0][0] + top[1][1]*matrix[1][0]
+	//			+ top[1][2]*matrix[2][0] + top[1][3]*matrix[3][0];
+	//Xi[1][1] = top[1][0]*matrix[0][1] + top[1][1]*matrix[1][1]
+	//			+ top[1][2]*matrix[2][1] + top[1][3]*matrix[3][1];
+	//Xi[1][2] = top[1][0]*matrix[0][2] + top[1][1]*matrix[1][2]
+	//			+ top[1][2]*matrix[2][2] + top[1][3]*matrix[3][2];
+	//Xi[1][3] = top[1][0]*matrix[0][3] + top[1][1]*matrix[1][3]
+	//			+ top[1][2]*matrix[2][3] + top[1][3]*matrix[3][3];
+	//////////////
+	//Xi[2][0] = top[2][0]*matrix[0][0] + top[2][1]*matrix[1][0]
+	//			+ top[2][2]*matrix[2][0] + top[2][3]*matrix[3][0];
+	//Xi[2][1] = top[2][0]*matrix[0][1] + top[2][1]*matrix[1][1]
+	//			+ top[2][2]*matrix[2][1] + top[2][3]*matrix[3][1];
+	//Xi[2][2] = top[2][0]*matrix[0][2] + top[2][1]*matrix[1][2]
+	//			+ top[2][2]*matrix[2][2] + top[2][3]*matrix[3][2];
+	//Xi[2][3] = top[2][0]*matrix[0][3] + top[2][1]*matrix[1][3]
+	//			+ top[2][2]*matrix[2][3] + top[2][3]*matrix[3][3];
+	///////////////
+	//Xi[3][0] = top[3][0]*matrix[0][0] + top[3][1]*matrix[1][0]
+	//			+ top[3][2]*matrix[2][0] + top[3][3]*matrix[3][0];
+	//Xi[3][1] = top[3][0]*matrix[0][1] + top[3][1]*matrix[1][1]
+	//			+ top[3][2]*matrix[2][1] + top[3][3]*matrix[3][1];
+	//Xi[3][2] = top[3][0]*matrix[0][2] + top[3][1]*matrix[1][2]
+	//			+ top[3][2]*matrix[2][2] + top[3][3]*matrix[3][2];
+	//Xi[3][3] = top[3][0]*matrix[0][3] + top[3][1]*matrix[1][3]
+	//			+ top[3][2]*matrix[2][3] + top[3][3]*matrix[3][3];
+	//////////////////
+	//memcpy(render->Ximage[render->matlevel], Xi, sizeof(GzMatrix));
+
+	// push onto Xnormals
+	//memcpy(render->Xnorm[render->matlevel], matrix, sizeof(GzMatrix));
+	//GzMatrix Xn;
+	//memcpy(top, render->Xnorm[render->matlevel-1], sizeof(GzMatrix));
+	//Xn[0][0] = top[0][0]*matrix[0][0] + top[0][1]*matrix[1][0]
+	//			+ top[0][2]*matrix[2][0] + top[0][3]*matrix[3][0];
+	//Xn[0][1] = top[0][0]*matrix[0][1] + top[0][1]*matrix[1][1]
+	//			+ top[0][2]*matrix[2][1] + top[0][3]*matrix[3][1];
+	//Xn[0][2] = top[0][0]*matrix[0][2] + top[0][1]*matrix[1][2]
+	//			+ top[0][2]*matrix[2][2] + top[0][3]*matrix[3][2];
+	//Xn[0][3] = top[0][0]*matrix[0][3] + top[0][1]*matrix[1][3]
+	//			+ top[0][2]*matrix[2][3] + top[0][3]*matrix[3][3];
+	///////
+	//Xn[1][0] = top[1][0]*matrix[0][0] + top[1][1]*matrix[1][0]
+	//			+ top[1][2]*matrix[2][0] + top[1][3]*matrix[3][0];
+	//Xn[1][1] = top[1][0]*matrix[0][1] + top[1][1]*matrix[1][1]
+	//			+ top[1][2]*matrix[2][1] + top[1][3]*matrix[3][1];
+	//Xn[1][2] = top[1][0]*matrix[0][2] + top[1][1]*matrix[1][2]
+	//			+ top[1][2]*matrix[2][2] + top[1][3]*matrix[3][2];
+	//Xn[1][3] = top[1][0]*matrix[0][3] + top[1][1]*matrix[1][3]
+	//			+ top[1][2]*matrix[2][3] + top[1][3]*matrix[3][3];
+	//////////////
+	//Xn[2][0] = top[2][0]*matrix[0][0] + top[2][1]*matrix[1][0]
+	//			+ top[2][2]*matrix[2][0] + top[2][3]*matrix[3][0];
+	//Xn[2][1] = top[2][0]*matrix[0][1] + top[2][1]*matrix[1][1]
+	//			+ top[2][2]*matrix[2][1] + top[2][3]*matrix[3][1];
+	//Xn[2][2] = top[2][0]*matrix[0][2] + top[2][1]*matrix[1][2]
+	//			+ top[2][2]*matrix[2][2] + top[2][3]*matrix[3][2];
+	//Xn[2][3] = top[2][0]*matrix[0][3] + top[2][1]*matrix[1][3]
+	//			+ top[2][2]*matrix[2][3] + top[2][3]*matrix[3][3];
+	///////////////
+	//Xn[3][0] = top[3][0]*matrix[0][0] + top[3][1]*matrix[1][0]
+	//			+ top[3][2]*matrix[2][0] + top[3][3]*matrix[3][0];
+	//Xn[3][1] = top[3][0]*matrix[0][1] + top[3][1]*matrix[1][1]
+	//			+ top[3][2]*matrix[2][1] + top[3][3]*matrix[3][1];
+	//Xn[3][2] = top[3][0]*matrix[0][2] + top[3][1]*matrix[1][2]
+	//			+ top[3][2]*matrix[2][2] + top[3][3]*matrix[3][2];
+	//Xn[3][3] = top[3][0]*matrix[0][3] + top[3][1]*matrix[1][3]
+	//			+ top[3][2]*matrix[2][3] + top[3][3]*matrix[3][3];
+	//////////////
+	GzPushNormalMatrix(render, matrix);
 
 	return GZ_SUCCESS;
 }
+
 
 int GzPopMatrix(GzRender *render)
 {
@@ -481,6 +621,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
        - test for triangles with all three verts off-screen 
 - invoke triangle rasterizer  
 */ 
+
 	// error checking
 	if (render == NULL) {
 		return GZ_FAILURE;
@@ -492,14 +633,17 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		return GZ_FAILURE;
 	}
 
+
+
 	// get Xsm
 	if (render->matlevel > 0) {
-		GzMatrix Xsm, temp;
+		GzMatrix Xsm, temp, Xn;
 		memcpy(Xsm, render->Ximage[0], sizeof(GzMatrix)); // copy first one 
+		memcpy(Xn, render->Xnorm[0], sizeof(GzMatrix));
 		//copyMatrix(Xsm, render->Ximage[0]);
 		for (int i = 1; i <= render->matlevel; ++i) {
 			memcpy(temp, Xsm, sizeof(GzMatrix));
-			//copyMatrix(temp, Xsm);
+			//////////////////
 			Xsm[0][0] = temp[0][0]*render->Ximage[i][0][0] + temp[0][1]*render->Ximage[i][1][0]
 						+ temp[0][2]*render->Ximage[i][2][0] + temp[0][3]*render->Ximage[i][3][0];
 			Xsm[0][1] = temp[0][0]*render->Ximage[i][0][1] + temp[0][1]*render->Ximage[i][1][1]
@@ -508,7 +652,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 						+ temp[0][2]*render->Ximage[i][2][2] + temp[0][3]*render->Ximage[i][3][2];
 			Xsm[0][3] = temp[0][0]*render->Ximage[i][0][3] + temp[0][1]*render->Ximage[i][1][3]
 						+ temp[0][2]*render->Ximage[i][2][3] + temp[0][3]*render->Ximage[i][3][3];
-			/////
+			/////////////////
 			Xsm[1][0] = temp[1][0]*render->Ximage[i][0][0] + temp[1][1]*render->Ximage[i][1][0]
 						+ temp[1][2]*render->Ximage[i][2][0] + temp[1][3]*render->Ximage[i][3][0];
 			Xsm[1][1] = temp[1][0]*render->Ximage[i][0][1] + temp[1][1]*render->Ximage[i][1][1]
@@ -535,6 +679,44 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 						+ temp[3][2]*render->Ximage[i][2][2] + temp[3][3]*render->Ximage[i][3][2];
 			Xsm[3][3] = temp[3][0]*render->Ximage[i][0][3] + temp[3][1]*render->Ximage[i][1][3]
 						+ temp[3][2]*render->Ximage[i][2][3] + temp[3][3]*render->Ximage[i][3][3];
+			////////////////////
+			memcpy(temp, Xn, sizeof(GzMatrix));
+			//////////////////
+			Xn[0][0] = temp[0][0]*render->Xnorm[i][0][0] + temp[0][1]*render->Xnorm[i][1][0]
+						+ temp[0][2]*render->Xnorm[i][2][0] + temp[0][3]*render->Xnorm[i][3][0];
+			Xn[0][1] = temp[0][0]*render->Xnorm[i][0][1] + temp[0][1]*render->Xnorm[i][1][1]
+						+ temp[0][2]*render->Xnorm[i][2][1] + temp[0][3]*render->Xnorm[i][3][1];
+			Xn[0][2] = temp[0][0]*render->Xnorm[i][0][2] + temp[0][1]*render->Xnorm[i][1][2]
+						+ temp[0][2]*render->Xnorm[i][2][2] + temp[0][3]*render->Xnorm[i][3][2];
+			Xn[0][3] = temp[0][0]*render->Xnorm[i][0][3] + temp[0][1]*render->Xnorm[i][1][3]
+						+ temp[0][2]*render->Xnorm[i][2][3] + temp[0][3]*render->Xnorm[i][3][3];
+			/////////////////
+			Xn[1][0] = temp[1][0]*render->Xnorm[i][0][0] + temp[1][1]*render->Xnorm[i][1][0]
+						+ temp[1][2]*render->Xnorm[i][2][0] + temp[1][3]*render->Xnorm[i][3][0];
+			Xn[1][1] = temp[1][0]*render->Xnorm[i][0][1] + temp[1][1]*render->Xnorm[i][1][1]
+						+ temp[1][2]*render->Xnorm[i][2][1] + temp[1][3]*render->Xnorm[i][3][1];
+			Xn[1][2] = temp[1][0]*render->Xnorm[i][0][2] + temp[1][1]*render->Xnorm[i][1][2]
+						+ temp[1][2]*render->Xnorm[i][2][2] + temp[1][3]*render->Xnorm[i][3][2];
+			Xn[1][3] = temp[1][0]*render->Xnorm[i][0][3] + temp[1][1]*render->Xnorm[i][1][3]
+						+ temp[1][2]*render->Xnorm[i][2][3] + temp[1][3]*render->Xnorm[i][3][3];
+			////////////
+			Xn[2][0] = temp[2][0]*render->Xnorm[i][0][0] + temp[2][1]*render->Xnorm[i][1][0]
+						+ temp[2][2]*render->Xnorm[i][2][0] + temp[2][3]*render->Xnorm[i][3][0];
+			Xn[2][1] = temp[2][0]*render->Xnorm[i][0][1] + temp[2][1]*render->Xnorm[i][1][1]
+						+ temp[2][2]*render->Xnorm[i][2][1] + temp[2][3]*render->Xnorm[i][3][1];
+			Xn[2][2] = temp[2][0]*render->Xnorm[i][0][2] + temp[2][1]*render->Xnorm[i][1][2]
+						+ temp[2][2]*render->Xnorm[i][2][2] + temp[2][3]*render->Xnorm[i][3][2];
+			Xn[2][3] = temp[2][0]*render->Xnorm[i][0][3] + temp[2][1]*render->Xnorm[i][1][3]
+						+ temp[2][2]*render->Xnorm[i][2][3] + temp[2][3]*render->Xnorm[i][3][3];
+			/////////////
+			Xn[3][0] = temp[3][0]*render->Xnorm[i][0][0] + temp[3][1]*render->Xnorm[i][1][0]
+						+ temp[3][2]*render->Xnorm[i][2][0] + temp[3][3]*render->Xnorm[i][3][0];
+			Xn[3][1] = temp[3][0]*render->Xnorm[i][0][1] + temp[3][1]*render->Xnorm[i][1][1]
+						+ temp[3][2]*render->Xnorm[i][2][1] + temp[3][3]*render->Xnorm[i][3][1];
+			Xn[3][2] = temp[3][0]*render->Xnorm[i][0][2] + temp[3][1]*render->Xnorm[i][1][2]
+						+ temp[3][2]*render->Xnorm[i][2][2] + temp[3][3]*render->Xnorm[i][3][2];
+			Xn[3][3] = temp[3][0]*render->Xnorm[i][0][3] + temp[3][1]*render->Xnorm[i][1][3]
+						+ temp[3][2]*render->Xnorm[i][2][3] + temp[3][3]*render->Xnorm[i][3][3];
 		}
 		// POP EVERYTHING
 		for (int i = render->matlevel; i >= 0; --i) {
@@ -542,24 +724,25 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		}
 		// push on Xsm
 		GzPushMatrix(render, Xsm);
+		GzPushNormalMatrix(render, Xn);
 	}
 
-	// Get vert positions
+	// get points
+	GzCoord* xformTri = new GzCoord[3];
+	GzCoord* xformNs = new GzCoord[3];
+	bool behindVP = false;
+	GzMatrix topMat, topNMat;
+	int top = render->matlevel;
+	memcpy(topMat, render->Ximage[top], sizeof(GzMatrix));
+	memcpy(topNMat, render->Xnorm[top], sizeof(GzMatrix));
+	//copyMatrix(topMat, render->xim
+	float W;
 	for (int i = 0; i < numParts; ++i) {
+		// Get vert positions
 		if (nameList[i] == GZ_POSITION) {
-			// get points
 			GzCoord* tri = (GzCoord*) valueList[i];
-			GzCoord* xformTri = new GzCoord[3];
-			bool behindVP = false;
-			GzMatrix topMat;
-			int top = render->matlevel;
-			memcpy(topMat, render->Ximage[top], sizeof(GzMatrix));
-			//copyMatrix(topMat, render->xim
-			float W;
-
+			// Transform Verticies
 			for (int j = 0; j < 3; ++j) {
-				// xform verticies
-				
 				xformTri[j][X] = topMat[0][0]*tri[j][X] + topMat[0][1]*tri[j][Y] + topMat[0][2]*tri[j][Z]
 					+ topMat[0][3]*1.0;
 				xformTri[j][Y] = topMat[1][0]*tri[j][X] + topMat[1][1]*tri[j][Y] + topMat[1][2]*tri[j][Z]
@@ -575,190 +758,252 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 				// check if any vets in behind view plane
 				if (xformTri[j][Z] < render->camera.position[Z]) {
 					behindVP = true;
-					break;
+					//break;
 				}
 			}
-	//	float x0 = tri[0][X];
-	//		float x1 = tri[1][X];
-	//		float x2 = tri[2][X];
-	//		float tx0 = xformTri[0][X];
-	//		float tx1 = xformTri[1][X];
-	//		float tx2 = xformTri[2][X];
-
-	//		float y0 = tri[0][Y];
-	//		float y1 = tri[1][Y];
-	//		float y2 = tri[2][Y];
-	//		float ty0 = xformTri[0][Y];
-	//		float ty1 = xformTri[1][Y];
-	//		float ty2 = xformTri[2][Y];
-
-	//		float z0 = tri[0][Z];
-	//		float z1 = tri[1][Z];
-	//		float z2 = tri[2][Z];
-	//		float tz0 = xformTri[0][Z];
-	//		float tz1 = xformTri[1][Z];
-	//		float tz2 = xformTri[2][Z];
-
-			// this tri is in front of viewing plane
-			if (behindVP == true) {
-				break;
-			}
-			// CLIPPING
-			//if (xformTri[0][Z] < render->camera.position[Z] 
-			//	&& xformTri[1][Z] < render->camera.position[Z]
-			//	&& xformTri[2][Z] < render->camera.position[Z]) {
-			//	break;
-			//}
-
-			//if ((xformTri[0][X] < 0 && xformTri[1][
-
-			// check if all verts are in screen (think i handle this in my rasterizer)
-			// RASTERIZE
-			// sort by Y
-			int minY = 0;
-			for (int i = 0; i < 2; ++i) {
-				minY = i;
-				for (int j = i + 1; j < 3; ++j) {
-					if (xformTri[minY][Y] > xformTri[j][Y]) {
-						minY = j;
-					}
-				}
-				// swapping
-				if (minY != i) {
-					float tempX = xformTri[i][X];
-					float tempY = xformTri[i][Y];
-					float tempZ = xformTri[i][Z];
-					xformTri[i][X] = xformTri[minY][X];
-					xformTri[i][Y] = xformTri[minY][Y];
-					xformTri[i][Z] = xformTri[minY][Z];
-					xformTri[minY][X] = tempX;
-					xformTri[minY][Y] = tempY;
-					xformTri[minY][Z] = tempZ;
-				}
-			}
-
-
-			// Get bounding box
-			int topY = floor(xformTri[0][Y]);
-			int bottomY = ceil(xformTri[2][Y]);
-			int leftX, rightX;
-			// 0 comes before 1
-			if (xformTri[0][X] < xformTri[1][X]) {
-				// 201
-				if (xformTri[2][X] < xformTri[0][X]) {
-					leftX = floor(xformTri[2][X]);
-					rightX = ceil(xformTri[1][X]);
-				} else { //0
-					leftX = floor(xformTri[0][X]);
-					// 021
-					if (xformTri[2][X] < xformTri[1][X]) {
-						rightX = ceil(xformTri[1][X]);
-					} else { // 012
-						rightX = ceil(xformTri[2][X]);
-					}
-				}
-			} else { // 1 comes before 0
-				//210
-				if (xformTri[2][X] < xformTri[1][X]) {
-					leftX = floor(xformTri[2][X]);
-					rightX = ceil(xformTri[0][X]);
-				} else { //1
-					leftX = floor(xformTri[1][X]);
-					// 120
-					if (xformTri[2][X] < xformTri[0][X]) {
-						rightX = ceil(xformTri[0][X]);
-					} else { // 102
-						rightX = ceil(xformTri[2][X]);
-					}
-				}
-			}
-
-			// For Z Interpolation
-			// Ax + By + Cz + D = 0;
-			// xformTri[0] x xformTri[1] = (A, B, C)
-			GzCoord edge01;
-			edge01[X] = xformTri[1][X]- xformTri[0][X];
-			edge01[Y] = xformTri[1][Y] - xformTri[0][Y];
-			edge01[Z] = xformTri[1][Z] - xformTri[0][Z];
-			GzCoord edge12;
-			edge12[X] = xformTri[2][X] - xformTri[1][X];
-			edge12[Y] = xformTri[2][Y] - xformTri[1][Y];
-			edge12[Z] = xformTri[2][Z] - xformTri[1][Z];
-
-			float A = edge01[Y]*edge12[Z] - edge01[Z]*edge12[Y];
-			float B = edge01[Z]*edge12[X] - edge01[X]*edge12[Z];
-			float C = edge01[X]*edge12[Y] - edge01[Y]*edge12[X];
-			// get D
-			float D = -(A*xformTri[0][X]) - (B*xformTri[0][Y]) - (C*xformTri[0][Z]);
-
-			// DRAW PIXELS
-			float interpZ;
-			for (int i = leftX; i < rightX; ++i) {
-				// bounds check
-				if (i < 0 || i > render->display->xres) {
-					continue;
-				}
-				for (int j = topY; j < bottomY; ++j) {
-					//// bounds check
-					if (j < 0 || j > render->display->yres) {
-						continue;
-					}
-
-					// Compute LEES
-					// E(x, y) = dY(x-X) - dX(y-Y)
-					// EDGE 0-1
-					float e01 = (xformTri[1][Y] - xformTri[0][Y])*((float)i - xformTri[0][X]) 
-								- (xformTri[1][X] - xformTri[0][X])*((float)j - xformTri[0][Y]);
-					// EDGE 1-2
-					float e12 = (xformTri[2][Y] - xformTri[1][Y])*((float)i - xformTri[1][X]) 
-								- (xformTri[2][X] - xformTri[1][X])*((float)j - xformTri[1][Y]);
-					// EDGE 2-0
-					float e20 = (xformTri[0][Y] - xformTri[2][Y])*((float)i - xformTri[2][X]) 
-								- (xformTri[0][X] - xformTri[2][X])*((float)j - xformTri[2][Y]);
-
-					// if all have same sign then this pixel should be drawn
-					if (e01 == 0 || e12 == 0 || e20 == 0) {
-						interpZ = (-(A*i) - (B*j) - D) / C;
-
-						// get current z at this pixel
-						GzIntensity r, g, b, a;
-						GzDepth z = 0;
-						GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
-						// compare, if interpZ less than draw over
-						if (interpZ < z) {
-							r = (GzIntensity ) ctoi((float) render->flatcolor[0]);
-							g = (GzIntensity ) ctoi((float)render->flatcolor[1]);
-							b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
-							z = interpZ;
-							GzPutDisplay(render->display, i, j, r, g, b, a, z);
-						}
-					}
-					else if ( ((e01 > 0) && (e12 > 0) && (e20 > 0)) || ((e01 < 0) && (e12 < 0) && (e20 < 0))) {
-						//(e01 == 0 && e12 == 0 && e20 == 0) 
-						// Interpolate Z value
-						interpZ = (-(A*i) - (B*j) - D) / C;
-
-						// get current z at this pixel
-						GzIntensity r, g, b, a;
-						GzDepth z = 0;
-						GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
-						// compare, if interpZ less than draw over
-						if (interpZ < z) {
-							r = (GzIntensity ) ctoi((float) render->flatcolor[0]);
-							g = (GzIntensity ) ctoi((float)render->flatcolor[1]);
-							b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
-							z = interpZ;
-							GzPutDisplay(render->display, i, j, r, g, b, a, z);
-						}
-
-					}
-
-				}
-			} 
-
 		}
+		// get vert normals
+		if(nameList[i] == GZ_NORMAL) {
+			GzCoord* Ns = (GzCoord*) valueList[i];
+			// don't need to transform these? though I should probably normalize
+			GzNormalizeVector(Ns[0]);
+			GzNormalizeVector(Ns[1]);
+			GzNormalizeVector(Ns[2]);
+			for (int j = 0; j < 3; ++j) {
+				xformNs[j][X] = topMat[0][0]*Ns[j][X] + topMat[0][1]*Ns[j][Y] + topMat[0][2]*Ns[j][Z];
+				xformNs[j][Y] = topMat[1][0]*Ns[j][X] + topMat[1][1]*Ns[j][Y] + topMat[1][2]*Ns[j][Z];
+				xformNs[j][Z] = topMat[2][0]*Ns[j][X] + topMat[2][1]*Ns[j][Y] + topMat[2][2]*Ns[j][Z];
+			}
+			GzNormalizeVector(xformNs[0]);
+			GzNormalizeVector(xformNs[1]);
+			GzNormalizeVector(xformNs[2]);
+		}
+
 	}
 
+		// this tri is in front of viewing plane
+	if (behindVP == false) {
+		// RASTERIZE
+		// sort by Y
+		int minY = 0;
+		for (int i = 0; i < 2; ++i) {
+			minY = i;
+			for (int j = i + 1; j < 3; ++j) {
+				if (xformTri[minY][Y] > xformTri[j][Y]) {
+					minY = j;
+				}
+			}
+			// swapping, have to swap norms too i guess...?
+			if (minY != i) {
+				float tempX = xformTri[i][X];
+				float tempNX = xformNs[i][X];
+				float tempY = xformTri[i][Y];
+				float tempNY = xformNs[i][Y];
+				float tempZ = xformTri[i][Z];
+				float tempNZ = xformNs[i][Z];
+				xformTri[i][X] = xformTri[minY][X];
+				xformNs[i][X] = xformNs[minY][X];
+				xformTri[i][Y] = xformTri[minY][Y];
+				xformNs[i][Y] = xformNs[minY][Y];
+				xformTri[i][Z] = xformTri[minY][Z];
+				xformNs[i][Z] = xformNs[minY][Z];
+				xformTri[minY][X] = tempX;
+				xformNs[minY][X] = tempNX;
+				xformTri[minY][Y] = tempY;
+				xformNs[minY][Y] = tempNY;
+				xformTri[minY][Z] = tempZ;
+				xformNs[minY][Z] = tempNZ;
+			}
+		}
+
+
+		// Get bounding box
+		int topY = floor(xformTri[0][Y]);
+		int bottomY = ceil(xformTri[2][Y]);
+		int leftX, rightX;
+		// 0 comes before 1
+		if (xformTri[0][X] < xformTri[1][X]) {
+			// 201
+			if (xformTri[2][X] < xformTri[0][X]) {
+				leftX = floor(xformTri[2][X]);
+				rightX = ceil(xformTri[1][X]);
+			} else { //0
+				leftX = floor(xformTri[0][X]);
+				// 021
+				if (xformTri[2][X] < xformTri[1][X]) {
+					rightX = ceil(xformTri[1][X]);
+				} else { // 012
+					rightX = ceil(xformTri[2][X]);
+				}
+			}
+		} else { // 1 comes before 0
+			//210
+			if (xformTri[2][X] < xformTri[1][X]) {
+				leftX = floor(xformTri[2][X]);
+				rightX = ceil(xformTri[0][X]);
+			} else { //1
+				leftX = floor(xformTri[1][X]);
+				// 120
+				if (xformTri[2][X] < xformTri[0][X]) {
+					rightX = ceil(xformTri[0][X]);
+				} else { // 102
+					rightX = ceil(xformTri[2][X]);
+				}
+			}
+		}
+
+		// For Z Interpolation
+		// Ax + By + Cz + D = 0;
+		// xformTri[0] x xformTri[1] = (A, B, C)
+		GzCoord edge01;
+		edge01[X] = xformTri[1][X]- xformTri[0][X];
+		edge01[Y] = xformTri[1][Y] - xformTri[0][Y];
+		edge01[Z] = xformTri[1][Z] - xformTri[0][Z];
+		GzCoord edge12;
+		edge12[X] = xformTri[2][X] - xformTri[1][X];
+		edge12[Y] = xformTri[2][Y] - xformTri[1][Y];
+		edge12[Z] = xformTri[2][Z] - xformTri[1][Z];
+
+		float A = edge01[Y]*edge12[Z] - edge01[Z]*edge12[Y];
+		float B = edge01[Z]*edge12[X] - edge01[X]*edge12[Z];
+		float C = edge01[X]*edge12[Y] - edge01[Y]*edge12[X];
+		// get D
+		float D = -(A*xformTri[0][X]) - (B*xformTri[0][Y]) - (C*xformTri[0][Z]);
+
+		// computer color at each vertex
+		// E should just be camera lookat reversed
+		GzCoord E;
+		E[X] = -1 * render->camera.lookat[X];
+		E[Y] = -1 * render->camera.lookat[Y];
+		E[Z] = -1 * render->camera.lookat[Z];
+		GzNormalizeVector(E);
+		// calculate Rs for each point
+		GzCoord* R = new GzCoord[render->numlights];
+		// vertex 0
+		float NdotL;
+		for (int i = 0; i < render->numlights; ++i) {
+			NdotL = GzDotProduct(xformNs[0], render->lights[i].direction);
+			R[i][X] = 2*NdotL*xformNs[0][X] - render->lights[i].direction[X];
+			R[i][Y] = 2*NdotL*xformNs[0][Y] - render->lights[i].direction[Y];
+			R[i][Z] = 2*NdotL*xformNs[0][Z] - render->lights[i].direction[Z];
+			GzNormalizeVector(R[i]);
+		}
+		// sum all lights for Specular
+		// Ks * sigma (le * (R dot E)^s) 
+		GzColor specLightSum;
+		for (int i = 0; i < render->numlights; ++i) {
+			// R
+			specLightSum[0] += render->lights[i].color[0] * pow(GzDotProduct(R[i],E), render->spec);
+			// G
+			specLightSum[1] += render->lights[i].color[1] * pow(GzDotProduct(R[i],E), render->spec);
+			// B
+			specLightSum[2] += render->lights[i].color[2] * pow(GzDotProduct(R[i],E), render->spec);
+		}
+		GzColor specComp;
+		specComp[0] = render->Ks[0] * specLightSum[0]; // R
+		specComp[1] = render->Ks[1] * specLightSum[1]; // G
+		specComp[2] = render->Ks[2] * specLightSum[2]; // B
+		
+		// sum all lights for Diffuse
+		// Kd * sigma (le * N dot L)
+		GzColor diffLightSum;
+		for (int i = 0; i < render->numlights; ++i) {
+			// R
+			diffLightSum[0] += render->lights[i].color[0] * GzDotProduct(xformNs[0], render->lights[i].direction);
+			// G
+			diffLightSum[1] += render->lights[i].color[1] * GzDotProduct(xformNs[1], render->lights[i].direction);
+			// B
+			diffLightSum[2] += render->lights[i].color[2] * GzDotProduct(xformNs[0], render->lights[i].direction);
+		}
+		GzColor diffComp;
+		diffComp[0] = render->Kd[0] * diffLightSum[0]; // R
+		diffComp[1] = render->Kd[1] * diffLightSum[1]; // G
+		diffComp[2] = render->Kd[2] * diffLightSum[2]; // B
+
+		// Ambient Component
+		GzColor ambComp;
+		ambComp[0] = render->Ka[0] * render->ambientlight.color[0]; // R
+		ambComp[1] = render->Ka[1] * render->ambientlight.color[1]; // G
+		ambComp[2] = render->Ka[2] * render->ambientlight.color[2]; // B
+
+		GzColor color;
+		color[0] = specComp[0] + diffComp[0] + ambComp[0]; // R
+		color[1] = specComp[1] + diffComp[1] + ambComp[1]; // G
+		color[2] = specComp[2] + diffComp[2] + ambComp[2]; // B
+
+		// TODO, functionize this
+
+		// DRAW PIXELS
+		float interpZ;
+		for (int i = leftX; i < rightX; ++i) {
+			// bounds check
+			if (i < 0 || i > render->display->xres) {
+				continue;
+			}
+			for (int j = topY; j < bottomY; ++j) {
+				//// bounds check
+				if (j < 0 || j > render->display->yres) {
+					continue;
+				}
+
+				// Compute LEES
+				// E(x, y) = dY(x-X) - dX(y-Y)
+				// EDGE 0-1
+				float e01 = (xformTri[1][Y] - xformTri[0][Y])*((float)i - xformTri[0][X]) 
+							- (xformTri[1][X] - xformTri[0][X])*((float)j - xformTri[0][Y]);
+				// EDGE 1-2
+				float e12 = (xformTri[2][Y] - xformTri[1][Y])*((float)i - xformTri[1][X]) 
+							- (xformTri[2][X] - xformTri[1][X])*((float)j - xformTri[1][Y]);
+				// EDGE 2-0
+				float e20 = (xformTri[0][Y] - xformTri[2][Y])*((float)i - xformTri[2][X]) 
+							- (xformTri[0][X] - xformTri[2][X])*((float)j - xformTri[2][Y]);
+
+				// if all have same sign then this pixel should be drawn
+				if (e01 == 0 || e12 == 0 || e20 == 0) {
+					interpZ = (-(A*i) - (B*j) - D) / C;
+
+					// get current z at this pixel
+					GzIntensity r, g, b, a;
+					GzDepth z = 0;
+					GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
+					// compare, if interpZ less than draw over
+					if (interpZ < z) {
+						r = (GzIntensity ) ctoi((float) render->flatcolor[0]);
+						g = (GzIntensity ) ctoi((float)render->flatcolor[1]);
+						b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
+						z = interpZ;
+						GzPutDisplay(render->display, i, j, r, g, b, a, z);
+					}
+				}
+				else if ( ((e01 > 0) && (e12 > 0) && (e20 > 0)) || ((e01 < 0) && (e12 < 0) && (e20 < 0))) {
+					//(e01 == 0 && e12 == 0 && e20 == 0) 
+					// Interpolate Z value
+					interpZ = (-(A*i) - (B*j) - D) / C;
+
+					// get current z at this pixel
+					GzIntensity r, g, b, a;
+					GzDepth z = 0;
+					GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
+					// compare, if interpZ less than draw over
+					if (interpZ < z) {
+						if (render->interp_mode == GZ_COLOR) {
+						} else if (render->interp_mode == GZ_NORMALS) {
+						} else {
+						//if (render->interp_mode = GZ_FLAT) { GZ_FLAT DOESN'T EXIST
+							// flatcolor never gets set here because GZ_RGB_COLOR doesn't get passed in
+							r = (GzIntensity ) ctoi((float) render->flatcolor[0]);
+							g = (GzIntensity ) ctoi((float)render->flatcolor[1]);
+							b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
+							z = interpZ;
+							GzPutDisplay(render->display, i, j, r, g, b, a, z);
+						}
+					}
+
+				}
+
+			}
+		}
+	}
 	return GZ_SUCCESS;
 }
 
