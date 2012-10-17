@@ -118,15 +118,9 @@ float GzDotProduct(GzCoord v1, GzCoord v2) {
 
 int GzShadingEquation(GzRender *render, GzColor color, GzCoord norm ) {
 		// computer color at each vertex
+		GzNormalizeVector(norm);	
 		// E should just be camera lookat reversed? Actually no goddamn it
 		GzCoord E;
-		//E[X] = -1 * render->camera.lookat[X];
-		//E[Y] = -1 * render->camera.lookat[Y];
-		//E[Z] = -1 * render->camera.lookat[Z];
-	/*	E[X] = pos[X] - render->camera.position[X];
-		E[Y] = pos[Y] - render->camera.position[Y];
-		E[Z] = pos[Z] - render->camera.position[Z];*/
-		// OR [0, 0, -1] seriously what the fuck should it be?
 		E[X] = 0; 
 		E[Y] = 0;
 		E[Z] = -1;
@@ -168,12 +162,15 @@ int GzShadingEquation(GzRender *render, GzColor color, GzCoord norm ) {
 		GzColor specLightSum = {0, 0, 0};
 		for (int i = 0; i < render->numlights; ++i) {
 			if (liteCases[i] == 0) continue;
+			float RdotE = GzDotProduct(R[i], E);
+			if (RdotE < 0) RdotE = 0;
+			if (RdotE > 1) RdotE = 1;
 			// R
-			specLightSum[0] += render->lights[i].color[0] * pow(GzDotProduct(R[i],E), render->spec);
+			specLightSum[0] += render->lights[i].color[0] * pow(RdotE, render->spec);
 			// G
-			specLightSum[1] += render->lights[i].color[1] * pow(GzDotProduct(R[i],E), render->spec);
+			specLightSum[1] += render->lights[i].color[1] * pow(RdotE, render->spec);
 			// B
-			specLightSum[2] += render->lights[i].color[2] * pow(GzDotProduct(R[i],E), render->spec);
+			specLightSum[2] += render->lights[i].color[2] * pow(RdotE, render->spec);
 		}
 		GzColor specComp;
 		specComp[0] = render->Ks[0] * specLightSum[0]; // R
@@ -212,7 +209,7 @@ int GzShadingEquation(GzRender *render, GzColor color, GzCoord norm ) {
 
 // finds aread of a triangle given the verticies
 float GzTriangleArea(GzCoord v0, GzCoord v1, GzCoord v2) {
-	return .5 * (v0[X]*v1[Y] + v0[Y]*v2[X] + v1[X]*v2[Y] - v1[Y]*v2[X] - v0[Y]*v1[X] - v0[X]*v2[Y]);
+	return abs(.5 * (v0[X]*v1[Y] + v0[Y]*v2[X] + v1[X]*v2[Y] - v1[Y]*v2[X] - v0[Y]*v1[X] - v0[X]*v2[Y]));
 }
 //----------------------------------------------------------
 // Begin main functions
@@ -961,10 +958,11 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 					// compare, if interpZ less than draw over
 					if (interpZ < z) {
 						if (render->interp_mode == GZ_COLOR) {
+							// Barycentric Interpolation
 							// areas of each inner tris
-							float A0 = GzTriangleArea(xformTri[0], p, xformTri[2]);
-							float A1 = GzTriangleArea(xformTri[0], xformTri[1], p);
-							float A2 = GzTriangleArea(p, xformTri[1], xformTri[2]);
+							float A0 = GzTriangleArea(xformTri[1], p, xformTri[2]);
+							float A1 = GzTriangleArea(xformTri[0], p, xformTri[2]);
+							float A2 = GzTriangleArea(xformTri[0], p, xformTri[1]);
 
 							// interpolate color
 							r = (GzIntensity) ctoi((A0*colorV0[0] + A1*colorV1[0] + A2*colorV2[0]) / triA);
@@ -972,10 +970,11 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 							b = (GzIntensity) ctoi((A0*colorV0[2] + A1*colorV1[2] + A2*colorV2[2]) / triA);
 							z = interpZ;
 						} else if (render->interp_mode == GZ_NORMALS) {
+							// Barycentric Interpolation
 							// areas of inner tris
-							float A0 = GzTriangleArea(xformTri[0], p, xformTri[2]);
-							float A1 = GzTriangleArea(xformTri[0], xformTri[1], p);
-							float A2 = GzTriangleArea(p, xformTri[1], xformTri[2]);
+							float A0 = GzTriangleArea(xformTri[1], p, xformTri[2]);
+							float A1 = GzTriangleArea(xformTri[0], p, xformTri[2]);
+							float A2 = GzTriangleArea(xformTri[0], p, xformTri[1]);
 
 							// interpolate Normal of this point
 							GzCoord pN;
