@@ -134,6 +134,7 @@ int GzShadingEquation(GzRender *render, GzColor color, GzCoord norm ) {
 		// if both positive fine liteCases[i] = 1;
 		// if both negative flip normal, liteCases[i] = -1;
 		// if different signs, skip, liteCases = 0;
+
 		float NdotE = GzDotProduct(norm, E);
 		for (int i = 0; i < render->numlights; ++i) {
 			NdotL = GzDotProduct(norm, render->lights[i].direction);
@@ -182,12 +183,22 @@ int GzShadingEquation(GzRender *render, GzColor color, GzCoord norm ) {
 		GzColor diffLightSum = {0, 0, 0};
 		for (int i = 0; i < render->numlights; ++i) {
 			if (liteCases[i] == 0) continue;
-			// R
-			diffLightSum[0] += render->lights[i].color[0] * GzDotProduct(norm, render->lights[i].direction);
-			// G
-			diffLightSum[1] += render->lights[i].color[1] * GzDotProduct(norm, render->lights[i].direction);
-			// B
-			diffLightSum[2] += render->lights[i].color[2] * GzDotProduct(norm, render->lights[i].direction);
+			if (liteCases[i] == 1) {
+				// R
+				diffLightSum[0] += render->lights[i].color[0] * GzDotProduct(norm, render->lights[i].direction);
+				// G
+				diffLightSum[1] += render->lights[i].color[1] * GzDotProduct(norm, render->lights[i].direction);
+				// B
+				diffLightSum[2] += render->lights[i].color[2] * GzDotProduct(norm, render->lights[i].direction);
+			} else if (liteCases[i] == -1) {
+				GzCoord negN = {-norm[X], -norm[Y], -norm[Z]};
+				// R
+				diffLightSum[0] += render->lights[i].color[0] * GzDotProduct(negN, render->lights[i].direction);
+				// G
+				diffLightSum[1] += render->lights[i].color[1] * GzDotProduct(negN, render->lights[i].direction);
+				// B
+				diffLightSum[2] += render->lights[i].color[2] * GzDotProduct(negN, render->lights[i].direction);
+			}
 		}
 		GzColor diffComp;
 		diffComp[0] = render->Kd[0] * diffLightSum[0]; // R
@@ -295,6 +306,7 @@ int GzFreeRender(GzRender *render)
 	//render->display == NULL;
 	GzFreeDisplay(render->display);
 	delete render->Ximage;
+	delete render->Xnorm;
 	//////render->Ximage = NULL;
 	delete render->Xsp;
 	//////render->Xsp = NULL
@@ -437,21 +449,11 @@ int GzBeginRender(GzRender *render)
 	render->matlevel=-1;
 	GzPushMatrix(render, render->Xsp);
 	GzPushNormalMatrix(render, identity);
-	//memcpy(render->Ximage[0], render->Xsp, sizeof(GzMatrix));
-	//memcpy(render->Xnorm[0], identity, sizeof(GzMatrix));
-	//render->matlevel += 1;
 	// push Xpi on Ximage, identity on Xnorm
 	GzPushMatrix(render, render->camera.Xpi);
 	GzPushNormalMatrix(render, identity);
-	//memcpy(render->Ximage[1], render->camera.Xpi, sizeof(GzMatrix));
-	//memcpy(render->Xnorm[1], identity, sizeof(GzMatrix));
-	//render->matlevel += 1;
-	// push Xiw on Ximage, identity on Xnorm
+	// push Xiw on Ximage, on Xnorm
 	GzPushMatrix(render, render->camera.Xiw);
-	//memcpy(render->Ximage[2], render->camera.Xiw, sizeof(GzMatrix));
-	//memcpy(render->Xnorm[2], render->camera.Xiw, sizeof(GzMatrix));
-	//render->matlevel += 1;
-	// this also goes on Xnorm
 
 	render->open = 1; // I don't even know what this does
 
@@ -926,24 +928,6 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 				float e20 = (xformTri[0][Y] - xformTri[2][Y])*((float)i - xformTri[2][X]) 
 							- (xformTri[0][X] - xformTri[2][X])*((float)j - xformTri[2][Y]);
 
-				// if all have same sign then this pixel should be drawn
-				//if (e01 == 0 || e12 == 0 || e20 == 0) {
-				//	interpZ = (-(A*i) - (B*j) - D) / C;
-
-				//	// get current z at this pixel
-				//	GzIntensity r, g, b, a;
-				//	GzDepth z = 0;
-				//	GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
-				//	// compare, if interpZ less than draw over
-				//	if (interpZ < z) {
-				//		r = (GzIntensity ) ctoi((float) render->flatcolor[0]);
-				//		g = (GzIntensity ) ctoi((float)render->flatcolor[1]);
-				//		b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
-				//		z = interpZ;
-				//		GzPutDisplay(render->display, i, j, r, g, b, a, z);
-				//	}
-				//}
-				//else 
 				if ( e01 == 0 || e12 == 0 || e20 == 0 || 
 					((e01 > 0) && (e12 > 0) && (e20 > 0)) || 
 					((e01 < 0) && (e12 < 0) && (e20 < 0))) {
@@ -965,9 +949,15 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 							float A2 = GzTriangleArea(xformTri[0], p, xformTri[1]);
 
 							// interpolate color
-							r = (GzIntensity) ctoi((A0*colorV0[0] + A1*colorV1[0] + A2*colorV2[0]) / triA);
-							g = (GzIntensity) ctoi((A0*colorV0[1] + A1*colorV1[1] + A2*colorV2[1]) / triA);
-							b = (GzIntensity) ctoi((A0*colorV0[2] + A1*colorV1[2] + A2*colorV2[2]) / triA);
+							float rf = (A0*colorV0[0] + A1*colorV1[0] + A2*colorV2[0]) / triA;
+							float gf = (A0*colorV0[1] + A1*colorV1[1] + A2*colorV2[1]) / triA;
+							float bf = (A0*colorV0[2] + A1*colorV1[2] + A2*colorV2[2]) / triA;
+							if (rf > 1.0) rf = 1.0;
+							if (gf > 1.0) gf = 1.0;
+							if (bf > 1.0) bf = 1.0;
+							r = (GzIntensity) ctoi(rf);
+							g = (GzIntensity) ctoi(gf);
+							b = (GzIntensity) ctoi(bf);
 							z = interpZ;
 						} else if (render->interp_mode == GZ_NORMALS) {
 							// Barycentric Interpolation
