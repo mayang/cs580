@@ -879,20 +879,20 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		// For Z Interpolation
 		// Ax + By + Cz + D = 0;
 		// xformTri[0] x xformTri[1] = (A, B, C)
-		GzCoord edge01;
-		edge01[X] = xformTri[1][X]- xformTri[0][X];
-		edge01[Y] = xformTri[1][Y] - xformTri[0][Y];
-		edge01[Z] = xformTri[1][Z] - xformTri[0][Z];
-		GzCoord edge12;
-		edge12[X] = xformTri[2][X] - xformTri[1][X];
-		edge12[Y] = xformTri[2][Y] - xformTri[1][Y];
-		edge12[Z] = xformTri[2][Z] - xformTri[1][Z];
+		//GzCoord edge01;
+		//edge01[X] = xformTri[1][X]- xformTri[0][X];
+		//edge01[Y] = xformTri[1][Y] - xformTri[0][Y];
+		//edge01[Z] = xformTri[1][Z] - xformTri[0][Z];
+		//GzCoord edge12;
+		//edge12[X] = xformTri[2][X] - xformTri[1][X];
+		//edge12[Y] = xformTri[2][Y] - xformTri[1][Y];
+		//edge12[Z] = xformTri[2][Z] - xformTri[1][Z];
 
-		float A = edge01[Y]*edge12[Z] - edge01[Z]*edge12[Y];
-		float B = edge01[Z]*edge12[X] - edge01[X]*edge12[Z];
-		float C = edge01[X]*edge12[Y] - edge01[Y]*edge12[X];
-		// get D
-		float D = -(A*xformTri[0][X]) - (B*xformTri[0][Y]) - (C*xformTri[0][Z]);
+		//float A = edge01[Y]*edge12[Z] - edge01[Z]*edge12[Y];
+		//float B = edge01[Z]*edge12[X] - edge01[X]*edge12[Z];
+		//float C = edge01[X]*edge12[Y] - edge01[Y]*edge12[X];
+		//// get D
+		//float D = -(A*xformTri[0][X]) - (B*xformTri[0][Y]) - (C*xformTri[0][Z]);
 
 		// calculate colors for verticies, write them into frame buffer
 		/////////// GOURAUD ////////////////////////////////////////////
@@ -903,9 +903,9 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		GzShadingEquation(render, colorV2, xformNs[2]);
 		// write theses into frame buffer? for gouraud?
 		
-		// For interpolating color across tri???
+		// For interpolating
 		// area of whole triangle
-		// total area of triangle for interpolation both Gouraud and Phong
+		// total area of triangle for interpolation Z, both Gouraud and Phong
 		float triA = GzTriangleArea(xformTri[0], xformTri[1], xformTri[2]);
 		//////////////////////////////////////////////////////////
 
@@ -938,21 +938,30 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 					((e01 > 0) && (e12 > 0) && (e20 > 0)) || 
 					((e01 < 0) && (e12 < 0) && (e20 < 0))) {
 					// Interpolate Z value
-					interpZ = (-(A*i) - (B*j) - D) / C;
+					//interpZ = (-(A*i) - (B*j) - D) / C;
 
 					// get current z at this pixel
 					GzCoord p = {i, j, 1};
 					GzIntensity r, g, b, a;
 					GzDepth z = 0;
+
+					// areas of each inner tris
+					float A0 = GzTriangleArea(xformTri[1], p, xformTri[2]);
+					float A1 = GzTriangleArea(xformTri[0], p, xformTri[2]);
+					float A2 = GzTriangleArea(xformTri[0], p, xformTri[1]);
+
+					// Interp Z
+					interpZ = (A0*xformTri[0][Z] + A1*xformTri[1][Z] + A2*xformTri[2][Z]) / triA;
+
 					GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
 					// compare, if interpZ less than draw over
 					if (interpZ < z) {
 						if (render->interp_mode == GZ_COLOR) {
 							// Barycentric Interpolation
 							// areas of each inner tris
-							float A0 = GzTriangleArea(xformTri[1], p, xformTri[2]);
-							float A1 = GzTriangleArea(xformTri[0], p, xformTri[2]);
-							float A2 = GzTriangleArea(xformTri[0], p, xformTri[1]);
+							//float A0 = GzTriangleArea(xformTri[1], p, xformTri[2]);
+							//float A1 = GzTriangleArea(xformTri[0], p, xformTri[2]);
+							//float A2 = GzTriangleArea(xformTri[0], p, xformTri[1]);
 
 							// interpolate color
 							float rf = (A0*colorV0[0] + A1*colorV1[0] + A2*colorV2[0]) / triA;
@@ -968,9 +977,9 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 						} else if (render->interp_mode == GZ_NORMALS) {
 							// Barycentric Interpolation
 							// areas of inner tris
-							float A0 = GzTriangleArea(xformTri[1], p, xformTri[2]);
-							float A1 = GzTriangleArea(xformTri[0], p, xformTri[2]);
-							float A2 = GzTriangleArea(xformTri[0], p, xformTri[1]);
+							//float A0 = GzTriangleArea(xformTri[1], p, xformTri[2]);
+							//float A1 = GzTriangleArea(xformTri[0], p, xformTri[2]);
+							//float A2 = GzTriangleArea(xformTri[0], p, xformTri[1]);
 
 							// interpolate Normal of this point
 							GzCoord pN;

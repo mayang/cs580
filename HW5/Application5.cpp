@@ -1,14 +1,14 @@
-// Application4.cpp: implementation of the Application4 class.
+// Application5.cpp: implementation of the Application5 class.
 //
 //////////////////////////////////////////////////////////////////////
 
 /*
- * application test code for homework assignment 
- */
+ * application test code for homework assignment #5
+*/
 
 #include "stdafx.h"
 #include "CS580HW.h"
-#include "Application4.h"
+#include "Application5.h"
 #include "Gz.h"
 #include "disp.h"
 #include "rend.h"
@@ -19,37 +19,41 @@ static char THIS_FILE[]=__FILE__;
 #define new DEBUG_NEW
 #endif
 
-#define INFILE  "pot4.asc"
+#define INFILE  "ppot.asc"
 #define OUTFILE "output.ppm"
+
+
+extern int tex_fun(float u, float v, GzColor color); /* image texture function */
+extern int ptex_fun(float u, float v, GzColor color); /* procedural texture function */
+
+void shade(GzCoord norm, GzCoord color);
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-Application4::Application4()
+Application5::Application5()
 {
 
 }
 
-Application4::~Application4()
+Application5::~Application5()
 {
 	
 }
 
-int Application4::Initialize()
+int Application5::Initialize()
 {
-/* to be filled in by the app if it sets camera params */
-
 	GzCamera	camera;  
 	int		    xRes, yRes, dispClass;	/* display parameters */ 
 
-	GzToken		nameListShader[9]; 	/* shader attribute names */
+	GzToken		nameListShader[9]; 	    /* shader attribute names */
 	GzPointer   valueListShader[9];		/* shader attribute pointers */
 	GzToken     nameListLights[10];		/* light info */
 	GzPointer   valueListLights[10];
 	int			shaderType, interpStyle;
 	float		specpower;
-	int		    status; 
+	int		status; 
  
 	status = 0; 
 
@@ -61,8 +65,7 @@ int Application4::Initialize()
 	/* 
 	 * initialize the display and the renderer 
 	 */ 
-
-	m_nWidth = 256;		// frame buffer and display width
+ 	m_nWidth = 256;		// frame buffer and display width
 	m_nHeight = 256;    // frame buffer and display height
 
 	status |= GzNewFrameBuffer(&m_pFrameBuffer, m_nWidth, m_nHeight);
@@ -101,19 +104,19 @@ GzMatrix	rotateY =
 }; 
 
 #if 1 	/* set up app-defined camera if desired, else use camera defaults */
-	camera.position[X] = 13.2;      
-  	camera.position[Y] = -8.7;
-  	camera.position[Z] = -14.8;
+    camera.position[X] = -3;
+    camera.position[Y] = -25;
+    camera.position[Z] = -4;
 
-  	camera.lookat[X] = 0.8;
-  	camera.lookat[Y] = 0.7;
-  	camera.lookat[Z] = 4.5;
+    camera.lookat[X] = 7.8;
+    camera.lookat[Y] = 0.7;
+    camera.lookat[Z] = 6.5;
 
-  	camera.worldup[X] = -0.2;
-  	camera.worldup[Y] = 1.0;
-  	camera.worldup[Z] = 0.0;
+    camera.worldup[X] = -0.2;
+    camera.worldup[Y] = 1.0;
+    camera.worldup[Z] = 0.0;
 
-	camera.FOV = 53.7;              /* degrees */
+    camera.FOV = 63.7;              /* degrees *              /* degrees */
 
 	status |= GzPutCamera(m_pRender, &camera); 
 #endif 
@@ -161,14 +164,9 @@ GzMatrix	rotateY =
 	* Select either GZ_COLOR or GZ_NORMALS as interpolation mode  
 	*/
         nameListShader[1]  = GZ_INTERPOLATE;
-	//	interpStyle = GZ_FLAT;
-#if 0
-      interpStyle = GZ_COLOR;         /* Gouraud shading */
-#else 
-       interpStyle = GZ_NORMALS;       /* Phong shading */
-#endif
-
+        interpStyle = GZ_NORMALS;         /* Phong shading */
         valueListShader[1] = (GzPointer)&interpStyle;
+
         nameListShader[2]  = GZ_AMBIENT_COEFFICIENT;
         valueListShader[2] = (GzPointer)ambientCoefficient;
         nameListShader[3]  = GZ_SPECULAR_COEFFICIENT;
@@ -177,7 +175,14 @@ GzMatrix	rotateY =
         specpower = 32;
         valueListShader[4] = (GzPointer)&specpower;
 
-	status |= GzPutAttribute(m_pRender, 5, nameListShader, valueListShader);
+        nameListShader[5]  = GZ_TEXTURE_MAP;
+#if 0   /* set up null texture function or valid pointer */
+        valueListShader[5] = (GzPointer)0;
+#else
+        valueListShader[5] = (GzPointer)(tex_fun);	/* or use ptex_fun */
+#endif
+        status |= GzPutAttribute(m_pRender, 6, nameListShader, valueListShader);
+
 
 	status |= GzPushMatrix(m_pRender, scale);  
 	status |= GzPushMatrix(m_pRender, rotateY); 
@@ -191,7 +196,7 @@ GzMatrix	rotateY =
 		return(GZ_SUCCESS); 
 }
 
-int Application4::Render() 
+int Application5::Render() 
 {
 	GzToken		nameListTriangle[3]; 	/* vertex attribute names */
 	GzPointer	valueListTriangle[3]; 	/* vertex attribute pointers */
@@ -210,7 +215,8 @@ int Application4::Render()
 	*/ 
 	nameListTriangle[0] = GZ_POSITION; 
 	nameListTriangle[1] = GZ_NORMAL; 
-	 
+	nameListTriangle[2] = GZ_TEXTURE_INDEX;  
+
 	// I/O File open
 	FILE *infile;
 	if( (infile  = fopen( INFILE , "r" )) == NULL )
@@ -257,7 +263,8 @@ int Application4::Render()
 	     */ 
 	     valueListTriangle[0] = (GzPointer)vertexList; 
 		 valueListTriangle[1] = (GzPointer)normalList; 
-	     GzPutTriangle(m_pRender, 2, nameListTriangle, valueListTriangle); 
+		 valueListTriangle[2] = (GzPointer)uvList; 
+		 GzPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle); 
 	} 
 
 	GzFlushDisplay2File(outfile, m_pDisplay); 	/* write out or update display to file*/
@@ -279,7 +286,7 @@ int Application4::Render()
 		return(GZ_SUCCESS); 
 }
 
-int Application4::Clean()
+int Application5::Clean()
 {
 	/* 
 	 * Clean up and exit 
