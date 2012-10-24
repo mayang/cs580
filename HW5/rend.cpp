@@ -218,6 +218,95 @@ int GzShadingEquation(GzRender *render, GzColor color, GzCoord norm ) {
 		return GZ_SUCCESS;		
 }
 
+// Special shading for texture gouraud, it doesn't multiply the Koefficients
+int GzShadingEquationTextureGouraud(GzRender *render, GzColor color, GzCoord norm ) {
+		// computer color at each vertex
+		GzNormalizeVector(norm);	
+		// E should just be camera lookat reversed? Actually no goddamn it
+		GzCoord E;
+		E[X] = 0; 
+		E[Y] = 0;
+		E[Z] = -1;
+		GzNormalizeVector(E);
+		// calculate Rs for each point
+		GzCoord* R = new GzCoord[render->numlights];
+		// vertex 0
+		float NdotL;
+		int* liteCases = new int[render->numlights];
+		// check N dot L and N dot E
+		// if both positive fine liteCases[i] = 1;
+		// if both negative flip normal, liteCases[i] = -1;
+		// if different signs, skip, liteCases = 0;
+
+		float NdotE = GzDotProduct(norm, E);
+		for (int i = 0; i < render->numlights; ++i) {
+			NdotL = GzDotProduct(norm, render->lights[i].direction);
+			if (NdotL >= 0 && NdotE >= 0) {
+				liteCases[i] = 1;
+				R[i][X] = 2*NdotL*norm[X] - render->lights[i].direction[X];
+				R[i][Y] = 2*NdotL*norm[Y] - render->lights[i].direction[Y];
+				R[i][Z] = 2*NdotL*norm[Z] - render->lights[i].direction[Z];
+				GzNormalizeVector(R[i]);
+			} else if (NdotL < 0 && NdotE < 0) {
+				liteCases[i] = -1;
+				R[i][X] = 2*NdotL*(-norm[X]) - render->lights[i].direction[X];
+				R[i][Y] = 2*NdotL*(-norm[Y]) - render->lights[i].direction[Y];
+				R[i][Z] = 2*NdotL*(-norm[Z]) - render->lights[i].direction[Z];
+				GzNormalizeVector(R[i]);
+			} else {
+				liteCases[i] = 0;
+				continue;
+			}
+		}
+		// check N dot L and N dot E, if both positi
+
+
+		// sum all lights for Specular
+		// Ks * sigma (le * (R dot E)^s) 
+		GzColor specLightSum = {0, 0, 0};
+		for (int i = 0; i < render->numlights; ++i) {
+			if (liteCases[i] == 0) continue;
+			float RdotE = GzDotProduct(R[i], E);
+			if (RdotE < 0) RdotE = 0;
+			if (RdotE > 1) RdotE = 1;
+			// R
+			specLightSum[0] += render->lights[i].color[0] * pow(RdotE, render->spec);
+			// G
+			specLightSum[1] += render->lights[i].color[1] * pow(RdotE, render->spec);
+			// B
+			specLightSum[2] += render->lights[i].color[2] * pow(RdotE, render->spec);
+		}
+		
+		// sum all lights for Diffuse
+		// Kd * sigma (le * N dot L)
+		GzColor diffLightSum = {0, 0, 0};
+		for (int i = 0; i < render->numlights; ++i) {
+			if (liteCases[i] == 0) continue;
+			if (liteCases[i] == 1) {
+				// R
+				diffLightSum[0] += render->lights[i].color[0] * GzDotProduct(norm, render->lights[i].direction);
+				// G
+				diffLightSum[1] += render->lights[i].color[1] * GzDotProduct(norm, render->lights[i].direction);
+				// B
+				diffLightSum[2] += render->lights[i].color[2] * GzDotProduct(norm, render->lights[i].direction);
+			} else if (liteCases[i] == -1) {
+				GzCoord negN = {-norm[X], -norm[Y], -norm[Z]};
+				// R
+				diffLightSum[0] += render->lights[i].color[0] * GzDotProduct(negN, render->lights[i].direction);
+				// G
+				diffLightSum[1] += render->lights[i].color[1] * GzDotProduct(negN, render->lights[i].direction);
+				// B
+				diffLightSum[2] += render->lights[i].color[2] * GzDotProduct(negN, render->lights[i].direction);
+			}
+		}
+
+		color[0] = specLightSum[0] + diffLightSum[0] + render->ambientlight.color[0]; // R
+		color[1] = specLightSum[1] + diffLightSum[1] + render->ambientlight.color[1]; // G
+		color[2] = specLightSum[2] + diffLightSum[2] + render->ambientlight.color[2]; // B
+
+		return GZ_SUCCESS;		
+}
+
 // finds aread of a triangle given the verticies
 float GzTriangleArea(GzCoord v0, GzCoord v1, GzCoord v2) {
 	return abs(.5 * (v0[X]*v1[Y] + v0[Y]*v2[X] + v1[X]*v2[Y] - v1[Y]*v2[X] - v0[Y]*v1[X] - v0[X]*v2[Y]));
@@ -907,9 +996,11 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		/////////// GOURAUD ////////////////////////////////////////////
 		// calculate colors at each vertex
 		GzColor colorV0, colorV1, colorV2;
-		GzShadingEquation(render, colorV0, xformNs[0]);
-		GzShadingEquation(render, colorV1, xformNs[1]);
-		GzShadingEquation(render, colorV2, xformNs[2]);
+		if (render->interp_mode == GZ_COLOR) {
+			GzShadingEquationTextureGouraud(render, colorV0, xformNs[0]);
+			GzShadingEquationTextureGouraud(render, colorV1, xformNs[1]);
+			GzShadingEquationTextureGouraud(render, colorV2, xformNs[2]);
+		}
 		// write theses into frame buffer? for gouraud?
 		
 		// For interpolating
@@ -979,7 +1070,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 						uv[0] = UV[0] * (Vz + 1);
 						uv[1] = UV[1] * (Vz + 1);
 						
-						// look up texture color
+						// look up texture color at this pixel
 						GzColor texColor;
 						render->tex_fun(uv[0], uv[1], texColor); 
 						
@@ -990,6 +1081,9 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 							float rf = (A0*colorV0[0] + A1*colorV1[0] + A2*colorV2[0]) / triA;
 							float gf = (A0*colorV0[1] + A1*colorV1[1] + A2*colorV2[1]) / triA;
 							float bf = (A0*colorV0[2] + A1*colorV1[2] + A2*colorV2[2]) / triA;
+							rf *= texColor[RED];
+							gf *= texColor[GREEN];
+							bf *= texColor[BLUE];
 							if (rf > 1.0) rf = 1.0;
 							if (gf > 1.0) gf = 1.0;
 							if (bf > 1.0) bf = 1.0;
@@ -1017,6 +1111,9 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 							// calculate color
 							GzColor color;
 							GzShadingEquation(render, color, pN);
+							if (color[0] > 1.0) color[0] = 1.0;
+							if (color[1] > 1.0) color[1] = 1.0;
+							if (color[2] > 1.0) color[2] = 1.0;
 
 							r = (GzIntensity) ctoi(color[0]);
 							g = (GzIntensity) ctoi(color[1]);
