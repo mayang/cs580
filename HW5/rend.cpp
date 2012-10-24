@@ -626,6 +626,8 @@ int GzPutAttribute(GzRender	*render, int numAttributes, GzToken	*nameList,
 		} else if (nameList[i] == GZ_DISTRIBUTION_COEFFICIENT) {
 			float* specCoeff = (float*) valueList[i]; // ugh why, int is fine!
 			render->spec = *specCoeff;
+		} else if (nameList[i] == GZ_TEXTURE_MAP) {
+			render->tex_fun = (GzTexture) valueList[i]; // what am i doing here?! I have no diea
 		}
 	}
 	
@@ -754,6 +756,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 	// get points
 	GzCoord* xformTri = new GzCoord[3];
 	GzCoord* xformNs = new GzCoord[3];
+	GzTextureIndex* UVTextCoord = new GzTextureIndex[3];
 	bool behindVP = false;
 	GzMatrix topMat, topNMat;
 	int top = render->matlevel;
@@ -803,6 +806,18 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 			GzNormalizeVector(xformNs[2]);
 		}
 
+		// get texture uv coordinates
+		if (nameList[i] == GZ_TEXTURE_INDEX) {
+			GzTextureIndex* uv = (GzTextureIndex*) valueList[i];
+			for (int k = 0; k < 3; ++k) {
+				// transform uv into perspective space UV for each vertex
+				float Vz = xformTri[k][Z] / (INT_MAX - xformTri[k][Z]);
+				UVTextCoord[k][0] = uv[k][0] / (Vz + 1);
+				UVTextCoord[k][1] = uv[k][1] / (Vz + 1);	
+
+			}
+		}
+
 	}
 
 		// this tri is in front of viewing plane
@@ -819,24 +834,36 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 			}
 			// swapping, have to swap norms too i guess...?
 			if (minY != i) {
+				// verts & norms
 				float tempX = xformTri[i][X];
 				float tempNX = xformNs[i][X];
 				float tempY = xformTri[i][Y];
 				float tempNY = xformNs[i][Y];
 				float tempZ = xformTri[i][Z];
 				float tempNZ = xformNs[i][Z];
+				// text coords
+				float tempU = UVTextCoord[i][0];
+				float tempV = UVTextCoord[i][1];
+				// verts & norms
 				xformTri[i][X] = xformTri[minY][X];
 				xformNs[i][X] = xformNs[minY][X];
 				xformTri[i][Y] = xformTri[minY][Y];
 				xformNs[i][Y] = xformNs[minY][Y];
 				xformTri[i][Z] = xformTri[minY][Z];
 				xformNs[i][Z] = xformNs[minY][Z];
+				// text coords
+				UVTextCoord[i][0] = UVTextCoord[minY][0];
+				UVTextCoord[i][1] = UVTextCoord[minY][1];
+				// verts and norms
 				xformTri[minY][X] = tempX;
 				xformNs[minY][X] = tempNX;
 				xformTri[minY][Y] = tempY;
 				xformNs[minY][Y] = tempNY;
 				xformTri[minY][Z] = tempZ;
 				xformNs[minY][Z] = tempNZ;
+				// text coords
+				UVTextCoord[minY][0] = tempU;
+				UVTextCoord[minY][1] = tempV;
 			}
 		}
 
@@ -875,24 +902,6 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 				}
 			}
 		}
-
-		// For Z Interpolation
-		// Ax + By + Cz + D = 0;
-		// xformTri[0] x xformTri[1] = (A, B, C)
-		//GzCoord edge01;
-		//edge01[X] = xformTri[1][X]- xformTri[0][X];
-		//edge01[Y] = xformTri[1][Y] - xformTri[0][Y];
-		//edge01[Z] = xformTri[1][Z] - xformTri[0][Z];
-		//GzCoord edge12;
-		//edge12[X] = xformTri[2][X] - xformTri[1][X];
-		//edge12[Y] = xformTri[2][Y] - xformTri[1][Y];
-		//edge12[Z] = xformTri[2][Z] - xformTri[1][Z];
-
-		//float A = edge01[Y]*edge12[Z] - edge01[Z]*edge12[Y];
-		//float B = edge01[Z]*edge12[X] - edge01[X]*edge12[Z];
-		//float C = edge01[X]*edge12[Y] - edge01[Y]*edge12[X];
-		//// get D
-		//float D = -(A*xformTri[0][X]) - (B*xformTri[0][Y]) - (C*xformTri[0][Z]);
 
 		// calculate colors for verticies, write them into frame buffer
 		/////////// GOURAUD ////////////////////////////////////////////
@@ -946,22 +955,36 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 					GzDepth z = 0;
 
 					// areas of each inner tris
+					// For Baycentric Interpolation
 					float A0 = GzTriangleArea(xformTri[1], p, xformTri[2]);
 					float A1 = GzTriangleArea(xformTri[0], p, xformTri[2]);
 					float A2 = GzTriangleArea(xformTri[0], p, xformTri[1]);
 
-					// Interp Z
+					// Interpolate Z for this point
 					interpZ = (A0*xformTri[0][Z] + A1*xformTri[1][Z] + A2*xformTri[2][Z]) / triA;
 
+					// get current values at this point
 					GzGetDisplay(render->display, i, j, &r, &g, &b, &a, &z);
 					// compare, if interpZ less than draw over
 					if (interpZ < z) {
+
+						// Interpolate UV
+						GzTextureIndex UV;
+						UV[0] = (A0*UVTextCoord[0][0] + A1*UVTextCoord[1][0] + A2*UVTextCoord[2][0]) / triA;
+						UV[1] = (A0*UVTextCoord[0][1] + A1*UVTextCoord[1][1] + A2*UVTextCoord[2][1]) / triA;
+						
+						// back to uv because reasons
+						GzTextureIndex uv;
+						float Vz = interpZ / (INT_MAX - interpZ);
+						uv[0] = UV[0] * (Vz + 1);
+						uv[1] = UV[1] * (Vz + 1);
+						
+						// look up texture color
+						GzColor texColor;
+						render->tex_fun(uv[0], uv[1], texColor); 
+						
+						// GOURAUD SHADING
 						if (render->interp_mode == GZ_COLOR) {
-							// Barycentric Interpolation
-							// areas of each inner tris
-							//float A0 = GzTriangleArea(xformTri[1], p, xformTri[2]);
-							//float A1 = GzTriangleArea(xformTri[0], p, xformTri[2]);
-							//float A2 = GzTriangleArea(xformTri[0], p, xformTri[1]);
 
 							// interpolate color
 							float rf = (A0*colorV0[0] + A1*colorV1[0] + A2*colorV2[0]) / triA;
@@ -974,12 +997,9 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 							g = (GzIntensity) ctoi(gf);
 							b = (GzIntensity) ctoi(bf);
 							z = interpZ;
+
+						// PHONG SHADING
 						} else if (render->interp_mode == GZ_NORMALS) {
-							// Barycentric Interpolation
-							// areas of inner tris
-							//float A0 = GzTriangleArea(xformTri[1], p, xformTri[2]);
-							//float A1 = GzTriangleArea(xformTri[0], p, xformTri[2]);
-							//float A2 = GzTriangleArea(xformTri[0], p, xformTri[1]);
 
 							// interpolate Normal of this point
 							GzCoord pN;
@@ -987,6 +1007,12 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 							pN[Y] = (A0*xformNs[0][Y] + A1*xformNs[1][Y] + A2*xformNs[2][Y]) / triA;
 							pN[Z] = (A0*xformNs[0][Z] + A1*xformNs[1][Z] + A2*xformNs[2][Z]) / triA;
 							GzNormalizeVector(pN);
+
+							// for textures!
+							render->Ka[RED] = render->Kd[RED] = texColor[RED];
+							render->Ka[GREEN] = render->Kd[GREEN] = texColor[GREEN];
+							render->Ka[BLUE] = render->Kd[BLUE] = texColor[BLUE];
+
 
 							// calculate color
 							GzColor color;
@@ -996,6 +1022,8 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 							g = (GzIntensity) ctoi(color[1]);
 							b = (GzIntensity) ctoi(color[2]);
 							z = interpZ;
+
+						// FLAT SHADING
 						} else {
 						//if (render->interp_mode = GZ_FLAT) { GZ_FLAT DOESN'T EXIST
 							// flatcolor never gets set here because GZ_RGB_COLOR doesn't get passed in
@@ -1004,6 +1032,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 							b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
 							z = interpZ;
 						}
+						// write to buffer
 						GzPutDisplay(render->display, i, j, r, g, b, a, z);
 					}
 				}
