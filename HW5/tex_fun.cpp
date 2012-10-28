@@ -89,6 +89,62 @@ int tex_fun(float u, float v, GzColor color)
 /* Procedural texture function */
 int ptex_fun(float u, float v, GzColor color)
 {
+	// Mandelbrot fractal - based on code in The RenderMan Shading Language Guide - Rudy Cortes & Saty Raghavachary
+	// convert u,v to x,y
+	float xmin = -0.5 - 0.5*4.0;
+	float ymin = 0.0 - 0.5*4.0;
+	float x = xmin + 4.0*u;
+	float y = ymin + 4.0*v;
+
+	float n = 0.0;
+	float a = x;
+	float b = y;
+	float aa, bb, twoab,h;
+
+	while (n < 20) {
+		aa = a * a;
+		bb = b * b;
+		twoab = 2 * a * b;
+		if ((aa + bb) > 256) break;
+		n += 1;
+		a = aa - bb + x;
+		b = twoab + y;
+	}
+
+	float remap = n / 20;
+
+	color[RED] = remap;
+	color[GREEN] = remap;
+	color[BLUE] = remap;
+
+	//// convert n to hue (HSV)
+	//float angle = (n / 20) * (3.14159 / 180.0);
+	//h = 0.5 * (1.0 + sin(angle)); // s = 1; v = 1
+	//// convert HSV to color RGB where each term [0,1]
+	//float c = 1.0;
+	//float h_prime = h / (3.14159 / 3);
+	//float xc = c * (1 - abs((int)h_prime % 2 - 1.0));
+	//float cr, cg, cb;
+	//if (0 <= h_prime && h_prime < 1) {
+	//	cr = c; cg = xc; cb = 0;
+	//} else if (1 <= h_prime && h_prime < 2) {
+	//	cr = xc; cg = c; cb = 0;
+	//} else if (2 <= h_prime && h_prime < 3) {
+	//	cr = 0; cg = c; cb = xc;
+	//} else if (3 <= h_prime && h_prime < 4) {
+	//	cr = 0, cg = xc; cb = c;
+	//} else if (4 <= h_prime && h_prime < 5) {
+	//	cr = xc; cg = 0; cb = c;
+	//} else if (5 <= h_prime && h_prime < 6) {
+	//	cr = c; cg = 0; cb = xc;
+	//} else {
+	//	cr = 0; cg = 0; cb = 0;
+	//}
+
+	//color[RED] = cr;
+	//color[GREEN] = cg;
+	//color[BLUE] = cb;
+
 	return GZ_SUCCESS;
 }
 
