@@ -91,17 +91,22 @@ int ptex_fun(float u, float v, GzColor color)
 {
 	// Mandelbrot fractal - based on code in The RenderMan Shading Language Guide - Rudy Cortes & Saty Raghavachary
 	// convert u,v to x,y
-	float xmin = -0.5 - 0.5*4.0;
-	float ymin = 0.0 - 0.5*4.0;
-	float x = xmin + 4.0*u;
-	float y = ymin + 4.0*v;
+	float xc = -0.5;
+	float yc = 0.0;
+	float sz = 4.0;
+	int maxiter = 20;
+
+	float xmin = xc - 0.5*sz;
+	float ymin = yc - 0.5*sz;
+	float x = xmin + sz*u;
+	float y = ymin + sz*v;
 
 	float n = 0.0;
 	float a = x;
 	float b = y;
 	float aa, bb, twoab,h;
 
-	while (n < 20) {
+	while (n < maxiter) {
 		aa = a * a;
 		bb = b * b;
 		twoab = 2 * a * b;
@@ -111,7 +116,7 @@ int ptex_fun(float u, float v, GzColor color)
 		b = twoab + y;
 	}
 
-	float remap = n / 20;
+	float remap = n / maxiter;
 
 	color[RED] = remap;
 	color[GREEN] = remap;
