@@ -37,7 +37,7 @@ typedef struct {			/* define a renderer */
   GzTexture		tex_fun;    /* tex_fun(float u, float v, GzColor color) */
   //float			offX;// = 0;
   //float			offY;// = 0;
-  float*		filterTable; 
+  float		filterTable[6][3]; 
 }  GzRender;
 #endif
 
