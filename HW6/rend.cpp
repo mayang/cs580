@@ -726,7 +726,13 @@ int GzPutAttribute(GzRender	*render, int numAttributes, GzToken	*nameList,
 			render->spec = *specCoeff;
 		} else if (nameList[i] == GZ_TEXTURE_MAP) {
 			render->tex_fun = (GzTexture) valueList[i]; // what am i doing here?! I have no diea
-		}
+		} else if (nameList[i] == GZ_AASHIFTX) {
+			//float* offX = (float*) valueList[i];
+			float* table = (float*) valueList[i];
+			render->filterTable = table;
+		} /*else if (nameList[i] == GZ_AASHIFTY) {
+			float* offY = (float*) valueList[i];
+		}*/
 	}
 	
 	return GZ_SUCCESS;
@@ -917,6 +923,8 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		}
 
 	}
+
+
 
 		// this tri is in front of viewing plane
 	if (behindVP == false) {
@@ -1149,6 +1157,12 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 							b = (GzIntensity ) ctoi((float)render->flatcolor[2]);
 							z = interpZ;
 						}
+						// anti aliasing
+						if (render->filterTable != NULL) {
+						}
+
+
+
 						// write to buffer
 						GzPutDisplay(render->display, i, j, r, g, b, a, z);
 					}

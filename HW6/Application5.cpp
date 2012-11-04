@@ -21,6 +21,7 @@ static char THIS_FILE[]=__FILE__;
 
 #define INFILE  "ppot.asc"
 #define OUTFILE "output.ppm"
+#define AAKERNEL_SIZE 6
 
 
 extern int tex_fun(float u, float v, GzColor color); /* image texture function */
@@ -68,15 +69,18 @@ int Application5::Initialize()
  	m_nWidth = 256;		// frame buffer and display width
 	m_nHeight = 256;    // frame buffer and display height
 
-	status |= GzNewFrameBuffer(&m_pFrameBuffer, m_nWidth, m_nHeight);
 
-	status |= GzNewDisplay(&m_pDisplay, GZ_RGBAZ_DISPLAY, m_nWidth, m_nHeight);
+	//for (int i = 0; i < AAKERNEL_SIZE; ++i ) {
+		status |= GzNewFrameBuffer(&m_pFrameBuffer, m_nWidth, m_nHeight);
 
-	status |= GzGetDisplayParams(m_pDisplay, &xRes, &yRes, &dispClass); 
+		status |= GzNewDisplay(&m_pDisplay, GZ_RGBAZ_DISPLAY, m_nWidth, m_nHeight);
+
+		status |= GzGetDisplayParams(m_pDisplay, &xRes, &yRes, &dispClass); 
 	 
-	status |= GzInitDisplay(m_pDisplay); 
+		status |= GzInitDisplay(m_pDisplay); 
  
-	status |= GzNewRender(&m_pRender, GZ_Z_BUFFER_RENDER, m_pDisplay); 
+		status |= GzNewRender(&m_pRender, GZ_Z_BUFFER_RENDER, m_pDisplay); 
+	//}
 
 /* Translation matrix */
 GzMatrix	scale = 
@@ -103,6 +107,10 @@ GzMatrix	rotateY =
 	0.0,	0.0,	0.0,	1.0 
 }; 
 
+float       AAFilter[AAKERNEL_SIZE][3] 	=/* each sample is defined by Xshift, Yshift, weight*/
+{  -0.52, 0.38, 0.128,                  0.41, 0.56, 0.119,                     0.27, 0.08, 0.294,
+-0.17, -0.29, 0.249,                    0.58, -0.55, 0.104,                   -0.31, -0.71, 0.106    };
+
 #if 1 	/* set up app-defined camera if desired, else use camera defaults */
     camera.position[X] = -3;
     camera.position[Y] = -25;
@@ -118,22 +126,23 @@ GzMatrix	rotateY =
 
     camera.FOV = 63.7;              /* degrees *              /* degrees */
 
-	status |= GzPutCamera(m_pRender, &camera); 
+
+		status |= GzPutCamera(m_pRender, &camera); 
 #endif 
 
 	/* Start Renderer */
-	status |= GzBeginRender(m_pRender);
+		status |= GzBeginRender(m_pRender);
+	
+		/* Light */
+		GzLight	light1 = { {-0.7071, 0.7071, 0}, {0.5, 0.5, 0.9} };
+		GzLight	light2 = { {0, -0.7071, -0.7071}, {0.9, 0.2, 0.3} };
+		GzLight	light3 = { {0.7071, 0.0, -0.7071}, {0.2, 0.7, 0.3} };
+		GzLight	ambientlight = { {0, 0, 0}, {0.3, 0.3, 0.3} };
 
-	/* Light */
-	GzLight	light1 = { {-0.7071, 0.7071, 0}, {0.5, 0.5, 0.9} };
-	GzLight	light2 = { {0, -0.7071, -0.7071}, {0.9, 0.2, 0.3} };
-	GzLight	light3 = { {0.7071, 0.0, -0.7071}, {0.2, 0.7, 0.3} };
-	GzLight	ambientlight = { {0, 0, 0}, {0.3, 0.3, 0.3} };
-
-	/* Material property */
-	GzColor specularCoefficient = { 0.3, 0.3, 0.3 };
-	GzColor ambientCoefficient = { 0.1, 0.1, 0.1 };
-	GzColor diffuseCoefficient = {0.7, 0.7, 0.7};
+		/* Material property */
+		GzColor specularCoefficient = { 0.3, 0.3, 0.3 };
+		GzColor ambientCoefficient = { 0.1, 0.1, 0.1 };
+		GzColor diffuseCoefficient = {0.7, 0.7, 0.7};
 
 /* 
   renderer is ready for frame --- define lights and shader at start of frame 
@@ -182,13 +191,19 @@ GzMatrix	rotateY =
      //valueListShader[5] = (GzPointer)(tex_fun);	/* or use ptex_fun */
 	//	valueListShader[5] = (GzPointer)(ptex_fun);
 //#endif
-        status |= GzPutAttribute(m_pRender, 6, nameListShader, valueListShader);
+
+		nameListShader[6] = GZ_AASHIFTX;
+		valueListShader[6] = (GzPointer) AAFilter;
+
+		//nameListShader[7] = GZ_AASHIFTY;
+		//valueListShader[7] = (GzPointer) &AAFilter[i][Y];
+
+        status |= GzPutAttribute(m_pRender, 7, nameListShader, valueListShader);
 
 
-	status |= GzPushMatrix(m_pRender, scale);  
-	status |= GzPushMatrix(m_pRender, rotateY); 
-	status |= GzPushMatrix(m_pRender, rotateX); 
-
+		status |= GzPushMatrix(m_pRender, scale);  
+		status |= GzPushMatrix(m_pRender, rotateY); 
+		status |= GzPushMatrix(m_pRender, rotateX) ;
 	if (status) exit(GZ_FAILURE); 
 
 	if (status) 
@@ -265,8 +280,14 @@ int Application5::Render()
 	     valueListTriangle[0] = (GzPointer)vertexList; 
 		 valueListTriangle[1] = (GzPointer)normalList; 
 		 valueListTriangle[2] = (GzPointer)uvList; 
-		 GzPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle); 
+		 for (int i = 0; i < AAKERNEL_SIZE; ++i) {
+			GzPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle); 
+		 }
 	} 
+
+
+
+
 
 	GzFlushDisplay2File(outfile, m_pDisplay); 	/* write out or update display to file*/
 	GzFlushDisplay2FrameBuffer(m_pFrameBuffer, m_pDisplay);	// write out or update display to frame buffer
