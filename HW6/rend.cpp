@@ -351,6 +351,7 @@ int GzNewRender(GzRender **render, GzRenderClass renderClass, GzDisplay	*display
 	
 	for (int i = 0; i < 6; ++i) {
 		GzNewDisplay(&(*render)->subsampledDisplays[i], GZ_RGBAZ_DISPLAY, 256, 256);
+		GzInitDisplay((*render)->subsampledDisplays[i]);
 	}
 
 	(*render)->matlevel = -1; // stack empty
@@ -937,13 +938,14 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 
 	}
 
-
+	int leftX = 0, rightX = 0;
+	int topY = 0, bottomY = 0;
 
 	// this tri is in front of viewing plane
 	// RASTERIZE!!
+	int lx=0, rx=0, ty=0, by = 0;
 	if (behindVP == false) {
-		int leftX, rightX;
-		int topY, bottomY;
+
 		// sort by Y
 		int minY = 0;
 		for (int i = 0; i < 2; ++i) {
@@ -997,7 +999,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		}
 
 		// Offset here!
-		//int k = 5;
+		//int k = 0;
 		for (int k = 0; k < 6; ++k) {
 			GzCoord offsetTri[3];
 			float offX = render->filterTable[k][X];
@@ -1013,6 +1015,8 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 			offsetTri[2][Z] = xformTri[2][Z];
 
 			// Get bounding box
+	/*		int leftX = 0, rightX = 0;
+			int topY = 0, bottomY = 0;*/
 			topY = floor(offsetTri[0][Y]);
 			bottomY = ceil(offsetTri[2][Y]);
 			
@@ -1046,6 +1050,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 					}
 				}
 			}
+			//lx = leftX; rx = rightX; ty = topY; by = top
 
 			// calculate colors for verticies, write them into frame buffer
 			/////////// GOURAUD ////////////////////////////////////////////
@@ -1209,7 +1214,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 				}
 			}
 		}
-		// Combine displays here
+						// Combine displays here
 		for (int i = leftX; i < rightX; ++i) {
 			// bounds check
 			if (i < 0 || i > render->display->xres) {
@@ -1220,13 +1225,30 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 				if (j < 0 || j > render->display->yres) {
 					continue;
 				}
-		//		GzIntensity r, g, b, a;
-		//		GzDepth z = 0;
-		//		GzGetDisplay(render->subsampledDisplays[0], i, j, &r, &g, &b, &a, &z);
-		//		GzPutDisplay(render->display, i, j, r,g, b, a, z);
+				GzIntensity red[6], green[6], blue[6], alpha[6];
+				GzDepth zdepth[6];
+				GzIntensity r, g, b, a;
+				GzDepth z = 0;
+				for (int k = 0; k < 6; ++k) 
+					GzGetDisplay(render->subsampledDisplays[k], i, j, &red[k], &green[k], &blue[k], &alpha[k], &zdepth[k]);
+				//GzGetDisplay(render->display, i, j,  &r, &g, &b, &a, &z);
+				r = render->filterTable[0][2]*red[0] + render->filterTable[1][2]*red[1] +
+					render->filterTable[2][2]*red[2] + render->filterTable[3][2]*red[3] +
+					render->filterTable[4][2]*red[4] + render->filterTable[5][2]*red[5];
+				g = render->filterTable[0][2]*green[0] + render->filterTable[1][2]*green[1] +
+					render->filterTable[2][2]*green[2] + render->filterTable[3][2]*green[3] +
+					render->filterTable[4][2]*green[4] + render->filterTable[5][2]*green[5];;
+				b = render->filterTable[0][2]*blue[0] + render->filterTable[1][2]*blue[1] +
+					render->filterTable[2][2]*blue[2] + render->filterTable[3][2]*blue[3] +
+					render->filterTable[4][2]*blue[4] + render->filterTable[5][2]*blue[5];;
+				a = render->filterTable[0][2]*alpha[0] + render->filterTable[1][2]*alpha[1] +
+					render->filterTable[2][2]*alpha[2] + render->filterTable[3][2]*alpha[3] +
+					render->filterTable[4][2]*alpha[4] + render->filterTable[5][2]*alpha[5];;
+				GzPutDisplay(render->display, i, j, r, g, b, a, z);
 			}
 		}
 	}
+
 	return GZ_SUCCESS;
 }
 
